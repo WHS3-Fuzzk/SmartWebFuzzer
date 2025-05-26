@@ -1,0 +1,5 @@
+# Linters
+pylint==3.3.4
+
+# Formatters
+black==25.1.0

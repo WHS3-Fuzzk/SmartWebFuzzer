@@ -1,0 +1,16 @@
+{
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+  
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+  
+    "python.linting.pylintArgs": [
+      "--disable=C0114,C0115,C0116", // 주석 관련 경고 비활성화
+      "--max-line-length=88"
+    ],
+  
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.useLibraryCodeForTypes": true
+  }
