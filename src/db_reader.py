@@ -1,9 +1,19 @@
 """db_reader.py  —  단일 클래스·4개 공개 메서드 버전"""
 
-from typing import Any, Dict
+import os
 import contextlib
+from typing import Any, Dict
 import psycopg2.extras as _E
 import psycopg2.pool
+from dotenv import load_dotenv
+
+load_dotenv()  # .env 파일을 환경 변수로 로딩
+
+DB_NAME = os.getenv("POSTGRES_DB")
+DB_USER = os.getenv("POSTGRES_USER")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DB_HOST = os.getenv("POSTGRES_HOST")
+DB_PORT = os.getenv("POSTGRES_PORT")
 
 
 # 다음 3개의 메타 데이터들의 id를 기준으로 read를 진행한다.
@@ -11,7 +21,11 @@ class DBReader:
     """filtered_request, fuzzed_request,  recon 이 셋의 id를 기준으로 read를 진행.
     각 id는 DB Write 수행 시, 반환 된 것을 이용한다."""
 
-    def __init__(self, dsn: str):
+    def __init__(self):
+        dsn = (
+            f"dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD} "
+            f"host={DB_HOST} port={DB_PORT}"
+        )
         self.pool = psycopg2.pool.SimpleConnectionPool(
             1, 10, dsn, cursor_factory=_E.RealDictCursor
         )
