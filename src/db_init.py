@@ -151,7 +151,7 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS fuzzed_response (
         id SERIAL PRIMARY KEY,
         fuzzed_request_id INTEGER NOT NULL REFERENCES fuzzed_request(id),
-        http_version INTEGER,
+        http_version VARCHAR,
         status_code INTEGER,
         timestamp TIMESTAMP
     );

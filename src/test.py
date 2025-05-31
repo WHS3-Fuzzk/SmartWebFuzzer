@@ -2,6 +2,8 @@
 
 from datetime import datetime  # ← 표준 라이브러리 먼저
 from db_writer import insert_filtered_request, insert_filtered_response
+from db_writer import insert_fuzzed_request, insert_fuzzed_response
+from db_reader import DBReader
 
 # 테스트용 요청 데이터
 test_request = {
@@ -44,3 +46,54 @@ test_response = {
 # 응답 삽입
 response_id = insert_filtered_response(test_response, request_id)
 print(f"[+] 응답 ID: {response_id}")
+
+reader = DBReader()
+print(reader.select_filtered_request(request_id))
+print("-------------------------------------------")
+print(reader.select_filtered_response(request_id))
+
+
+#################################################################################
+# 퍼징 요청 예시
+fuzzed_request = {
+    "original_request_id": request_id,  # 기존 filtered_request의 ID를 참조
+    "scanner": "xss-scanner",
+    "payload": "<script>alert(1)</script>",
+    "is_http": 1,
+    "http_version": "HTTP/1.1",
+    "domain": "example.com",
+    "path": "/login",
+    "method": "POST",
+    "timestamp": datetime.now(),
+    "headers": {"User-Agent": "Fuzzer/1.0", "Content-Type": "application/json"},
+    "query": [{"key": "q", "value": "<script>", "source": "url"}],
+    "body": {
+        "content_type": "application/json",
+        "charset": "utf-8",
+        "content_length": 66,
+        "content_encoding": "identity",
+        "body": '{"username": "admin", "password": "<script>alert(1)</script>"}',
+    },
+}
+fuzzed_request_id = insert_fuzzed_request(fuzzed_request)
+print(f"[+] 퍼징 요청 ID: {fuzzed_request_id}")
+
+fuzzed_response = {
+    "http_version": "HTTP/1.1",
+    "status_code": 403,
+    "timestamp": datetime.now(),
+    "headers": {"Content-Type": "text/html"},
+    "body": {
+        "content_type": "text/html",
+        "charset": "utf-8",
+        "content_length": 35,
+        "content_encoding": "identity",
+        "body": "<html>Forbidden: XSS blocked</html>",
+    },
+}
+fuzzed_response_id = insert_fuzzed_response(fuzzed_response, fuzzed_request_id)
+print(f"[+] 퍼징 응답 ID: {fuzzed_response_id}")
+
+print(reader.select_fuzzed_request(fuzzed_request_id))
+print("-------------------------------------------")
+print(reader.select_fuzzed_response(fuzzed_request_id))
