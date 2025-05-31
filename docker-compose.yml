@@ -25,7 +25,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: my_pgadmin
+    container_name: fuzzk_pgadmin
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
