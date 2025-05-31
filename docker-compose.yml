@@ -23,6 +23,21 @@ services:
     volumes:
       - redis_data:/data
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: fuzzk_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pg_data:/var/lib/pgadmin
+
 volumes:
   postgres_data:
   redis_data:
+  pg_data:
