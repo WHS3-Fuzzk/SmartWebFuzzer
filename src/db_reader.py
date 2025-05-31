@@ -83,23 +83,33 @@ class DBReader:
 
     # ─────────────── 공개 API 5개 ───────────────
     def select_filtered_request(self, request_id: int) -> Dict[str, Any]:
-        """filtered_request_id -> filtered_request, filtered_headers, filtered_query_params, filtered_requests_body 읽기"""
+        """filtered_request_id
+        -> filtered_request, filtered_headers, filtered_query_params, filtered_requests_body 읽기
+        """
         return self._select_request("filtered_", request_id)
 
     def select_filtered_response(self, request_id: int) -> Dict[str, Any]:
-        """filtered_request_id -> filtered_response, filtered_response_headers, filtered_response_body 읽기"""
+        """filtered_request_id
+        -> filtered_response, filtered_response_headers, filtered_response_body 읽기
+        """
         return self._select_response("filtered_", request_id)
 
     def select_fuzzed_request(self, fuzzed_request_id: int) -> Dict[str, Any]:
-        """fuzzed_request_id -> fuzzed_request, fuzzed_headers, fuzzed_query_params, fuzzed_requests_body 읽기"""
+        """fuzzed_request_id
+        -> fuzzed_request, fuzzed_headers, fuzzed_query_params, fuzzed_requests_body 읽기
+        """
         return self._select_request("fuzzed_", fuzzed_request_id)
 
     def select_fuzzed_response(self, fuzzed_request_id: int) -> Dict[str, Any]:
-        """fuzzed_request_id -> fuzzed_response, fuzzed_response_headers, fuzzed_response_body 읽기"""
+        """fuzzed_request_id
+        -> fuzzed_response, fuzzed_response_headers, fuzzed_response_body 읽기
+        """
         return self._select_response("fuzzed_", fuzzed_request_id)
 
     def select_recon(self, recon_id: int) -> Dict[str, Any]:
-        """recon_id -> recon, recon_software 읽기"""
+        """recon_id
+        -> recon, recon_software 읽기
+        """
         with self._cur() as c:
             c.execute("SELECT * FROM recon WHERE id=%s", (recon_id,))
             meta = c.fetchone()
