@@ -11,20 +11,15 @@ test_request = {
     "path": "/login",
     "method": "POST",
     "timestamp": datetime.now(),
-    "headers": {
-        "User-Agent": "TestAgent/1.0",
-        "Content-Type": "application/json"
-    },
-    "query": [
-        {"key": "ref", "value": "test", "source": "url"}
-    ],
+    "headers": {"User-Agent": "TestAgent/1.0", "Content-Type": "application/json"},
+    "query": [{"key": "ref", "value": "test", "source": "url"}],
     "body": {
         "content_type": "application/json",
         "charset": "utf-8",
         "content_length": 42,
         "content_encoding": "identity",
-        "body": '{"username": "admin", "password": "pass"}'
-    }
+        "body": '{"username": "admin", "password": "pass"}',
+    },
 }
 
 # 요청 삽입 → ID 얻기
@@ -36,16 +31,14 @@ test_response = {
     "http_version": "HTTP/1.1",
     "status_code": 200,
     "timestamp": datetime.now(),
-    "headers": {
-        "Content-Type": "application/json"
-    },
+    "headers": {"Content-Type": "application/json"},
     "body": {
         "content_type": "application/json",
         "charset": "utf-8",
         "content_length": 28,
         "content_encoding": "identity",
-        "body": '{"status": "ok", "token": "..."}'
-    }
+        "body": '{"status": "ok", "token": "..."}',
+    },
 }
 
 # 응답 삽입
