@@ -51,7 +51,8 @@ class DBReader:
 
             # query params
             c.execute(
-                "SELECT key, value, source FROM filtered_query_params WHERE request_id=%s ORDER BY id",
+                "SELECT key, value, source "
+                "FROM filtered_query_params WHERE request_id=%s ORDER BY id",
                 (request_id,),
             )
             params = c.fetchall()
@@ -75,13 +76,15 @@ class DBReader:
                 raise KeyError(f"fuzzed_request {request_id} not found")
 
             c.execute(
-                "SELECT key, value FROM fuzzed_request_headers WHERE fuzzed_request_id=%s ORDER BY id",
+                "SELECT key, value "
+                "FROM fuzzed_request_headers WHERE fuzzed_request_id=%s ORDER BY id",
                 (request_id,),
             )
             headers = c.fetchall()
 
             c.execute(
-                "SELECT key, value, source FROM fuzzed_query_params WHERE fuzzed_request_id=%s ORDER BY id",
+                "SELECT key, value, source "
+                "FROM fuzzed_query_params WHERE fuzzed_request_id=%s ORDER BY id",
                 (request_id,),
             )
             params = c.fetchall()
@@ -140,7 +143,8 @@ class DBReader:
             response_id = meta["id"]
 
             c.execute(
-                "SELECT key, value FROM fuzzed_response_headers WHERE fuzzed_response_id=%s ORDER BY id",
+                "SELECT key, value "
+                "FROM fuzzed_response_headers WHERE fuzzed_response_id=%s ORDER BY id",
                 (response_id,),
             )
             headers = c.fetchall()
