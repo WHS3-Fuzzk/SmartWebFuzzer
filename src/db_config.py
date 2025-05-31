@@ -1,6 +1,10 @@
 """환경 변수에서 DB 접속 정보를 불러오는 설정 모듈"""
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 DB_NAME = os.getenv("POSTGRES_DB")
 USER = os.getenv("POSTGRES_USER")
