@@ -2,10 +2,8 @@
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from dotenv import load_dotenv
-from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
-load_dotenv()  # .env 파일을 환경 변수로 로딩
+from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 
 def create_database_if_not_exists():
