@@ -3,16 +3,9 @@ DB 삽입 관련 함수 모듈
 환경변수에서 DB 연결 정보를 불러와 PostgreSQL에 데이터를 저장함
 """
 
-import os
 import psycopg2
 from psycopg2.extras import execute_values
-
-# 환경변수에서 DB 연결 정보 읽기
-DB_NAME = os.getenv("POSTGRES_DB")
-USER = os.getenv("POSTGRES_USER")
-PASSWORD = os.getenv("POSTGRES_PASSWORD")
-HOST = os.getenv("POSTGRES_HOST")
-PORT = os.getenv("POSTGRES_PORT")
+from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 
 def insert_filtered_request(request: dict) -> int:

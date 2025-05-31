@@ -1,17 +1,11 @@
 """db 초기화 (초기 DB 생성 및 테이블 생성)"""
 
-import os
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
+from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 load_dotenv()  # .env 파일을 환경 변수로 로딩
-
-DB_NAME = os.getenv("POSTGRES_DB")
-USER = os.getenv("POSTGRES_USER")
-PASSWORD = os.getenv("POSTGRES_PASSWORD")
-HOST = os.getenv("POSTGRES_HOST")
-PORT = os.getenv("POSTGRES_PORT")
 
 
 def create_database_if_not_exists():
