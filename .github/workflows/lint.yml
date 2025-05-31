@@ -18,6 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r dev-requirements.txt
+          pip install -r requirements.txt
       - name: Run black
         run: black --check .
       - name: Run pylint
