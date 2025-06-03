@@ -51,12 +51,16 @@ def run_mitmproxy_in_new_terminal(view_filter: str) -> subprocess.Popen:
         return subprocess.Popen(powershell_cmd, env=env)
 
     if system == "Darwin":
-        apple_script = (
-            f'do shell script "osascript -e '
-            f'\'tell application \\"Terminal\\" to do script \\"sudo {cmd}\\"\'" '
-            "with administrator privileges"
-        )
-        return subprocess.Popen(["osascript", "-e", apple_script], env=env)
+        cmd = [
+            "mitmproxy",
+            "-s",
+            traffic_filter_path,
+            "--view-filter",
+            view_filter,
+            "--no-http2",
+            "-v",
+        ]
+        return subprocess.Popen(cmd, env=env)
 
     if system == "Linux":
         return subprocess.Popen(
