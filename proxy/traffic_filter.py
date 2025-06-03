@@ -12,6 +12,7 @@ seen_response_keys = set()
 # 예시: 중요하게 여겨야 하는 파라미터 이름들 화이트리스트 기반
 KEY_PARAMS_TO_INCLUDE_VALUES = {"cmd", "action", "mode", "type"}
 
+
 def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
     parsed_url = urllib.parse.urlparse(flow.request.url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
@@ -22,7 +23,11 @@ def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
 
     # 중요 파라미터: key + value 조합 포함
     important_param_pairs = tuple(
-        sorted((k, tuple(query_params[k])) for k in query_params if k in KEY_PARAMS_TO_INCLUDE_VALUES)
+        sorted(
+            (k, tuple(query_params[k]))
+            for k in query_params
+            if k in KEY_PARAMS_TO_INCLUDE_VALUES
+        )
     )
 
     # 식별자 구성: base_url + key만 파라미터 + 중요 파라미터 key-value
@@ -43,21 +48,21 @@ def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
 
     return False
 
+
 # 타겟 도메인 리스트 (여기에 원하는 도메인 추가)
-TARGET_DOMAINS = [
-    "testphp.vulnweb.com",
-    "naver.com"
-]
+TARGET_DOMAINS = ["testphp.vulnweb.com", "naver.com"]
 
 LOG_DIR = os.path.abspath(os.path.dirname(__file__))
 REQUESTS_LOG = os.path.join(LOG_DIR, "requests.log")
 RESPONSES_LOG = os.path.join(LOG_DIR, "responses.log")
+
 
 def ensure_log_file(path):
     """로그 파일이 없으면 빈 파일로 생성"""
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
             pass
+
 
 ensure_log_file(REQUESTS_LOG)
 ensure_log_file(RESPONSES_LOG)
@@ -71,9 +76,8 @@ EXCLUDED_PATTERNS = [
     "\\.jpg$",
     "\\.css$",
     "\\.js$",
-    "\\.gif$"
+    "\\.gif$",
 ]
-
 
 
 def is_excluded_url(url: str) -> bool:
@@ -97,11 +101,9 @@ def build_view_filter(domains):
     # 제외 조건들을 AND로 조합
     excluded_filter = " & ".join([f'!~u "{pattern}"' for pattern in EXCLUDED_PATTERNS])
     # 각 도메인별로 필터 생성
-    filters = [
-        f'(~d {domain} & {excluded_filter})'
-        for domain in domains
-    ]
+    filters = [f"(~d {domain} & {excluded_filter})" for domain in domains]
     return " | ".join(filters)
+
 
 def is_valid_request(flow: http.HTTPFlow) -> bool:
     """
@@ -115,6 +117,7 @@ def is_valid_request(flow: http.HTTPFlow) -> bool:
         return False
 
     return True
+
 
 def is_valid_response(flow: http.HTTPFlow) -> bool:
     """
@@ -142,8 +145,6 @@ def is_valid_response(flow: http.HTTPFlow) -> bool:
     return True
 
 
-
-
 def request(flow: http.HTTPFlow):
     if is_valid_request(flow):
         url = flow.request.pretty_url.lower()
@@ -152,12 +153,12 @@ def request(flow: http.HTTPFlow):
         if is_duplicated_by_flow(flow, mode="request"):
             return
         log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
-        #print(f"[VALID REQUEST] {flow.request.method} {flow.request.pretty_url}")
+        # print(f"[VALID REQUEST] {flow.request.method} {flow.request.pretty_url}")
         with open(REQUESTS_LOG, "a", encoding="utf-8") as f:
             f.write(log_line)
         # DB 저장 또는 후속 처리 로직 추가 가능
 
-    
+
 def response(flow: http.HTTPFlow):
     if is_valid_response(flow) and (flow):
         url = flow.request.pretty_url.lower()
@@ -166,8 +167,7 @@ def response(flow: http.HTTPFlow):
         if is_duplicated_by_flow(flow, mode="response"):
             return
         log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
-        #print(f"[VALID RESPONSE] {flow.request.pretty_url} -> {flow.response.status_code}")
+        # print(f"[VALID RESPONSE] {flow.request.pretty_url} -> {flow.response.status_code}")
         with open(RESPONSES_LOG, "a", encoding="utf-8") as f:
             f.write(log_line)
         # DB 저장 또는 후속 처리 로직 추가 가능
-

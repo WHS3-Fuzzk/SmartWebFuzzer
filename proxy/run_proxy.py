@@ -14,7 +14,8 @@ PROXY_HOST = "127.0.0.1"
 PROXY_PORT = 8080
 
 
-traffic_filter_path = os.path.abspath('traffic_filter.py')
+traffic_filter_path = os.path.abspath("traffic_filter.py")
+
 
 def run_mitmproxy_in_new_terminal(view_filter):
     """
@@ -36,7 +37,7 @@ def run_mitmproxy_in_new_terminal(view_filter):
         powershell_cmd = [
             "powershell",
             "-Command",
-            f'Start-Process cmd -ArgumentList \'/k {cmd}\' -Verb RunAs'
+            f"Start-Process cmd -ArgumentList '/k {cmd}' -Verb RunAs",
         ]
         return subprocess.Popen(powershell_cmd, env=env)
     # macOS: osascript로 터미널 실행
@@ -50,11 +51,11 @@ def run_mitmproxy_in_new_terminal(view_filter):
     # Linux: gnome-terminal로 실행
     if system == "Linux":
         return subprocess.Popen(
-            ['gnome-terminal', '--', 'bash', '-c', f'sudo {cmd}; exec bash'],
-            env=env
+            ["gnome-terminal", "--", "bash", "-c", f"sudo {cmd}; exec bash"], env=env
         )
     # 지원하지 않는 OS 예외 처리
     raise OSError("이 운영체제에서는 관리자 권한 새 터미널 실행이 지원되지 않습니다.")
+
 
 def start_browser_and_browse():
     """
@@ -72,10 +73,10 @@ def start_browser_and_browse():
     chrome_options.add_argument("--disable-dev-shm-usage")
 
     driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=chrome_options
+        service=Service(ChromeDriverManager().install()), options=chrome_options
     )
     return driver
+
 
 def main():
     """
@@ -91,6 +92,7 @@ def main():
 
     # 도메인 리스트 추출 (mitmproxy 필터용)
     import urllib.parse
+
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
 
     view_filter = build_view_filter(domains)
