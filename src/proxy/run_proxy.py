@@ -16,7 +16,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
-from traffic_filter import build_view_filter
+from proxy.traffic_filter import build_view_filter
 
 
 PROXY_HOST = "127.0.0.1"
