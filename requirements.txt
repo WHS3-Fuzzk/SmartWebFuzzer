@@ -1,6 +1,6 @@
 psycopg2-binary==2.9.10
 python-dotenv==1.1.0
 
-mitmproxy
-selenium
-webdriver-manager
+mitmproxy==12.1.1
+selenium==4.32.0
+webdriver-manager==4.0.2
