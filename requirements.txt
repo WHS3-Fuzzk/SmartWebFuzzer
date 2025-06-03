@@ -3,3 +3,4 @@ python-dotenv==1.1.0
 celery==5.5.2
 redis==6.2.0
 requests==2.32.3
+wad==0.4.6
