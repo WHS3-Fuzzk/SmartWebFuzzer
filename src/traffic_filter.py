@@ -6,8 +6,15 @@ mitmproxy를 이용한 요청/응답 필터링 및 로그 저장 스크립트
 import os
 import re
 import urllib.parse
+from datetime import datetime
 
 from mitmproxy import http
+
+from db_writer import insert_filtered_request, insert_filtered_response
+from recon import run_recon
+
+# flow.id 와 request_id 매핑용
+flow_id_to_request_id_map = {}
 
 # 요청/응답 중복 식별용 set
 seen_request_keys = set()
@@ -19,9 +26,6 @@ KEY_PARAMS_TO_INCLUDE_VALUES = {"cmd", "action", "mode", "type"}
 domains_str = os.getenv("TARGET_DOMAINS", "")
 TARGET_DOMAINS = [d.strip() for d in domains_str.split(",") if d.strip()]
 
-LOG_DIR = os.path.abspath(os.path.dirname(__file__))
-REQUESTS_LOG = os.path.join(LOG_DIR, "requests.log")
-RESPONSES_LOG = os.path.join(LOG_DIR, "responses.log")
 
 EXCLUDED_PATTERNS = [
     "favicon",
@@ -33,17 +37,6 @@ EXCLUDED_PATTERNS = [
     "\\.js$",
     "\\.gif$",
 ]
-
-
-def ensure_log_file(path: str) -> None:
-    """로그 파일이 없으면 빈 파일 생성"""
-    if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8"):
-            pass
-
-
-ensure_log_file(REQUESTS_LOG)
-ensure_log_file(RESPONSES_LOG)
 
 
 def is_excluded_url(url: str) -> bool:
@@ -125,6 +118,93 @@ def is_valid_response(flow: http.HTTPFlow) -> bool:
     return True
 
 
+def flow_to_request_dict(flow: http.HTTPFlow):
+    """
+    insert_filtered_request 인터페이스에 맞게 변환
+    """
+    # 쿼리 파라미터 변환
+    query_params = []
+    for k, v in flow.request.query.items(multi=True):
+        query_params.append({"key": k, "value": v, "source": "url"})
+
+    # body 변환
+    content_type = flow.request.headers.get("content-type", "")
+    # charset 파싱
+    charset = "utf-8"
+    if "charset=" in content_type:
+        charset = content_type.split("charset=")[-1].split(";")[0].strip()
+    content_length = int(
+        flow.request.headers.get("content-length", len(flow.request.raw_content or b""))
+    )
+    content_encoding = flow.request.headers.get("content-encoding", "identity")
+    body = flow.request.get_text(strict=False) if flow.request.raw_content else ""
+
+    body_dict = (
+        {
+            "content_type": content_type,
+            "charset": charset,
+            "content_length": content_length,
+            "content_encoding": content_encoding,
+            "body": body,
+        }
+        if body
+        else None
+    )
+
+    # is_http: HTTP/HTTPS면 1, 아니면 0
+    scheme = flow.request.scheme.lower()
+    is_http = 1 if scheme in ("http", "https") else 0
+
+    request_dict = {
+        "is_http": is_http,
+        "http_version": flow.request.http_version,
+        "domain": flow.request.host,
+        "path": flow.request.path,
+        "method": flow.request.method,
+        "timestamp": datetime.now(),
+        "headers": dict(flow.request.headers),
+        "query": query_params,
+        "body": body_dict,
+    }
+    return request_dict
+
+
+def flow_to_response_dict(flow: http.HTTPFlow):
+    """
+    insert_filtered_response 인터페이스에 맞게 변환
+    """
+    headers = dict(flow.response.headers) if flow.response else {}
+
+    if flow.response and flow.response.raw_content:
+        content_type = flow.response.headers.get("content-type", "")
+        charset = "utf-8"
+        if "charset=" in content_type:
+            charset = content_type.split("charset=")[-1].split(";")[0].strip()
+        content_length = int(
+            flow.response.headers.get("content-length", len(flow.response.raw_content))
+        )
+        content_encoding = flow.response.headers.get("content-encoding", "identity")
+        body = flow.response.get_text(strict=False)
+        body_dict = {
+            "content_type": content_type,
+            "charset": charset,
+            "content_length": content_length,
+            "content_encoding": content_encoding,
+            "body": body,
+        }
+    else:
+        body_dict = None
+
+    response_dict = {
+        "http_version": flow.response.http_version if flow.response else "",
+        "status_code": flow.response.status_code if flow.response else 0,
+        "timestamp": datetime.now(),
+        "headers": headers,
+        "body": body_dict,
+    }
+    return response_dict
+
+
 def request(flow: http.HTTPFlow) -> None:
     """
     mitmproxy 요청 이벤트 처리
@@ -139,12 +219,13 @@ def request(flow: http.HTTPFlow) -> None:
     if is_duplicated_by_flow(flow, mode="request"):
         return
 
-    # TODO: 필터링에 문제 없으면 run_recon 실행
+    run_recon(flow.request.host, flow.request.path)
 
-    # TODO: 요청 저장 (DB_Writer)
-    log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
-    with open(REQUESTS_LOG, "a", encoding="utf-8") as _:
-        _.write(log_line)
+    request_dict = flow_to_request_dict(flow)
+    request_id = insert_filtered_request(request_dict)
+
+    # flow.id와 request_id 매핑하여 저장 -> 응답에서 사용
+    flow_id_to_request_id_map[flow.id] = request_id
 
 
 def response(flow: http.HTTPFlow) -> None:
@@ -161,7 +242,15 @@ def response(flow: http.HTTPFlow) -> None:
     if is_duplicated_by_flow(flow, mode="response"):
         return
 
-    # TODO: 응답 저장 (DB_Writer)
-    log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
-    with open(RESPONSES_LOG, "a", encoding="utf-8") as _:
-        _.write(log_line)
+    # 응답 저장 (DB_Writer)
+    response_dict = flow_to_response_dict(flow)
+
+    # flow.id로 이 응답에 대응하는 request_id 조회
+    request_id = flow_id_to_request_id_map.get(flow.id)
+
+    if request_id is not None:
+        insert_filtered_response(response_dict, request_id)
+    else:
+        print(
+            f"[Error]request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
+        )
