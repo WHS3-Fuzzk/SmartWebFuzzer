@@ -177,3 +177,18 @@ class DBReader:
             software = c.fetchall()
 
         return {"meta": meta, "software": software}
+
+    def get_recon_id_by_domain_path(self, domain: str, path: str) -> int:
+        """
+        domain, path로 recon 테이블에서 id를 조회
+        """
+        with self._cur() as c:
+            c.execute(
+                "SELECT id FROM recon WHERE domain=%s AND path=%s "
+                "ORDER BY detected_at DESC LIMIT 1",
+                (domain, path),
+            )
+            row = c.fetchone()
+            if row:
+                return row["id"]
+            return -1

@@ -6,3 +6,4 @@ requests==2.32.3
 mitmproxy==12.1.1
 selenium==4.32.0
 webdriver-manager==4.0.2
+wad==0.4.6
