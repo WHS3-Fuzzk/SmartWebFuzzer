@@ -12,7 +12,7 @@ import os
 import time
 import urllib.parse
 from selenium.common.exceptions import WebDriverException
-import run_proxy
+import proxy
 
 
 def main():
@@ -35,13 +35,13 @@ def main():
     os.environ["TARGET_DOMAINS"] = domains_str
 
     print("[INFO] mitmproxy 시작 중...")
-    mitmproxy_process = run_proxy.run_mitmproxy()
+    mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
 
     driver = None
     try:
         print("[INFO] Selenium 브라우저 시작")
-        driver = run_proxy.start_browser_and_browse()
+        driver = proxy.start_browser_and_browse()
 
         for url in urls:
             print(f"[INFO] 접속 중: {url}")
