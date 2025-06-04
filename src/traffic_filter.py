@@ -1,4 +1,5 @@
 """
+[요청/응답 필터링 모듈]
 mitmproxy를 이용한 요청/응답 필터링 및 로그 저장 스크립트
 """
 
@@ -15,7 +16,8 @@ seen_response_keys = set()
 # 중요 파라미터 키 (값까지 체크 대상)
 KEY_PARAMS_TO_INCLUDE_VALUES = {"cmd", "action", "mode", "type"}
 
-TARGET_DOMAINS = ["testphp.vulnweb.com", "naver.com"]
+domains_str = os.getenv("TARGET_DOMAINS", "")
+TARGET_DOMAINS = [d.strip() for d in domains_str.split(",") if d.strip()]
 
 LOG_DIR = os.path.abspath(os.path.dirname(__file__))
 REQUESTS_LOG = os.path.join(LOG_DIR, "requests.log")

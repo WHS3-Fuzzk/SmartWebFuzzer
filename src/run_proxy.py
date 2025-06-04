@@ -1,36 +1,30 @@
 """
-이 모듈은 mitmproxy를 새 터미널에서 실행하고,
-Selenium Chrome 브라우저를 mitmproxy 프록시를 통해 실행하여
+[프록시 모듈]
+이 모듈은 mitmproxy 프록시 서버를 서브 프로세스로 실행하고,
+프록시 서버에 연결한 Selenium Chrome 브라우저를 실행하여
 사용자가 입력한 URL에 접속하는 기능을 제공합니다.
 """
 
 import os
-import time
 import platform
 import subprocess
-import urllib.parse
-
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-
-from traffic_filter import build_view_filter
 
 
 PROXY_HOST = "127.0.0.1"
 PROXY_PORT = 8080
 
-traffic_filter_path = os.path.abspath("traffic_filter.py")
+traffic_filter_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "traffic_filter.py"
+)
 
 
-def run_mitmproxy_in_new_terminal(view_filter: str) -> subprocess.Popen:
+def run_mitmproxy() -> subprocess.Popen:
     """
-    OS별로 mitmproxy를 새 터미널에서 실행한다.
-
-    Args:
-        view_filter (str): mitmproxy view-filter 문자열
+    OS별로 mitmproxy를 서브 프로세스로 실행한다.
 
     Returns:
         subprocess.Popen: mitmproxy 프로세스 객체
@@ -38,8 +32,8 @@ def run_mitmproxy_in_new_terminal(view_filter: str) -> subprocess.Popen:
     system = platform.system()
     env = os.environ.copy()
     cmd = (
-        f'mitmproxy -s "{traffic_filter_path}" '
-        f'--view-filter "{view_filter}" --no-http2 -v'
+        f'mitmdump -s "{traffic_filter_path}" '
+        f"--no-http2 -q --set console_eventlog_verbosity=error"
     )
 
     if system == "Windows":
@@ -52,13 +46,13 @@ def run_mitmproxy_in_new_terminal(view_filter: str) -> subprocess.Popen:
 
     if system == "Darwin":
         cmd = [
-            "mitmproxy",
+            "mitmdump",
             "-s",
             traffic_filter_path,
-            "--view-filter",
-            view_filter,
             "--no-http2",
-            "-v",
+            "-q",  # quiet 모드
+            "--set",
+            "console_eventlog_verbosity=error",
         ]
         return subprocess.Popen(cmd, env=env)
 
@@ -90,59 +84,3 @@ def start_browser_and_browse() -> webdriver.Chrome:
         service=Service(ChromeDriverManager().install()), options=chrome_options
     )
     return driver
-
-
-def main():
-    """
-    메인 함수:
-    1. 사용자로부터 타겟 URL 리스트 입력 받음
-    2. mitmproxy를 새 터미널에서 실행
-    3. Selenium 브라우저를 mitmproxy 프록시로 실행 후 각 URL 접속
-    """
-    input_urls = input(
-        "타겟 URL들을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com): "
-    )
-    urls = [u.strip() for u in input_urls.split(",") if u.strip()]
-    if not urls:
-        print("URL이 입력되지 않았습니다. 종료합니다.")
-        return
-
-    domains = [urllib.parse.urlparse(url).netloc for url in urls]
-    view_filter = build_view_filter(domains)
-    print(f"[INFO] mitmproxy view filter: {view_filter}")
-
-    print("[INFO] mitmproxy 새 터미널에서 시작 중...")
-    run_mitmproxy_in_new_terminal(view_filter)
-    time.sleep(5)
-
-    driver = None
-    try:
-        print("[INFO] Selenium 브라우저 시작")
-        driver = start_browser_and_browse()
-
-        for url in urls:
-            print(f"[INFO] 접속 중: {url}")
-            try:
-                driver.get(url)
-                print(f"[SUCCESS] {url} 접속 성공!")
-            except WebDriverException as exc:
-                print(f"[ERROR] {url} 접속 실패: {exc}")
-            time.sleep(3)
-
-        input("[INFO] 아무 키나 누르면 종료됩니다...")
-
-    except (OSError, KeyboardInterrupt) as exc:
-        print(f"[ERROR] 메인 프로세스 중 오류 발생: {exc}")
-
-    finally:
-        print("[INFO] 종료 중...")
-        if driver:
-            try:
-                driver.quit()
-            except WebDriverException as exc:
-                print(f"[WARN] 브라우저 종료 중 오류: {exc}")
-        print("[INFO] mitmproxy는 새 터미널에서 수동으로 종료해야 합니다.")
-
-
-if __name__ == "__main__":
-    main()
