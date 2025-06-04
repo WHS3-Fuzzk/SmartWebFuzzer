@@ -139,6 +139,9 @@ def request(flow: http.HTTPFlow) -> None:
     if is_duplicated_by_flow(flow, mode="request"):
         return
 
+    # TODO: 필터링에 문제 없으면 run_recon 실행
+
+    # TODO: 요청 저장 (DB_Writer)
     log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
     with open(REQUESTS_LOG, "a", encoding="utf-8") as _:
         _.write(log_line)
@@ -158,6 +161,7 @@ def response(flow: http.HTTPFlow) -> None:
     if is_duplicated_by_flow(flow, mode="response"):
         return
 
+    # TODO: 응답 저장 (DB_Writer)
     log_line = f"{flow.request.method} {flow.request.pretty_url}\n"
     with open(RESPONSES_LOG, "a", encoding="utf-8") as _:
         _.write(log_line)

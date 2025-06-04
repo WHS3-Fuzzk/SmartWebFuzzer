@@ -34,6 +34,10 @@ def main():
     domains_str = ",".join(domains)
     os.environ["TARGET_DOMAINS"] = domains_str
 
+    # TODO: 인프라 docker-compose 실행
+    # TODO: DB 초기화
+    # TODO: 대시보드 모듈 실행
+    # TODO: 스캐너 트리거 모듈 실행
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
