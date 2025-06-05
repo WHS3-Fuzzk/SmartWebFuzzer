@@ -12,6 +12,7 @@ import os
 import time
 import urllib.parse
 from selenium.common.exceptions import WebDriverException
+from db_init import create_database_if_not_exists, create_tables
 import proxy
 
 
@@ -36,6 +37,9 @@ def main():
 
     # TODO: 인프라 docker-compose 실행
     # TODO: DB 초기화
+    create_database_if_not_exists()
+    create_tables()
+
     # TODO: 대시보드 모듈 실행
     # TODO: 스캐너 트리거 모듈 실행
     print("[INFO] mitmproxy 시작 중...")
@@ -62,6 +66,8 @@ def main():
         print(f"[ERROR] 메인 프로세스 중 오류 발생: {exc}")
 
     finally:
+        # TODO: DB 백업
+
         print("[INFO] 종료 중...")
         if driver:
             try:
