@@ -31,6 +31,7 @@ def run_mitmproxy() -> subprocess.Popen:
     env = os.environ.copy()
     cmd = (
         f'mitmdump -s "{traffic_filter_path}" '
+        f"--mode regular@{PROXY_PORT} "
         f"--no-http2 -q --set console_eventlog_verbosity=error"
     )
 
@@ -47,6 +48,8 @@ def run_mitmproxy() -> subprocess.Popen:
             "mitmdump",
             "-s",
             traffic_filter_path,
+            "--mode",
+            f"regular@{PROXY_PORT}",
             "--no-http2",
             "-q",  # quiet 모드
             "--set",
