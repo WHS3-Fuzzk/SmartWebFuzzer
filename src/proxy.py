@@ -6,7 +6,6 @@
 """
 
 import os
-import platform
 import subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -27,42 +26,22 @@ def run_mitmproxy() -> subprocess.Popen:
     Returns:
         subprocess.Popen: mitmproxy 프로세스 객체
     """
-    system = platform.system()
+
     env = os.environ.copy()
-    cmd = (
-        f'mitmdump -s "{traffic_filter_path}" '
-        f"--mode regular@{PROXY_PORT} "
-        f"--no-http2 -q --set console_eventlog_verbosity=error"
-    )
 
-    if system == "Windows":
-        powershell_cmd = [
-            "powershell",
-            "-Command",
-            f"Start-Process cmd -ArgumentList '/k {cmd}' -Verb RunAs",
-        ]
-        return subprocess.Popen(powershell_cmd, env=env)
+    cmd = [
+        "mitmdump",
+        "-s",
+        traffic_filter_path,
+        "--mode",
+        f"regular@{PROXY_PORT}",
+        "--no-http2",
+        "-q",
+        "--set",
+        "console_eventlog_verbosity=error",
+    ]
 
-    if system == "Darwin":
-        cmd = [
-            "mitmdump",
-            "-s",
-            traffic_filter_path,
-            "--mode",
-            f"regular@{PROXY_PORT}",
-            "--no-http2",
-            "-q",  # quiet 모드
-            "--set",
-            "console_eventlog_verbosity=error",
-        ]
-        return subprocess.Popen(cmd, env=env)
-
-    if system == "Linux":
-        return subprocess.Popen(
-            ["gnome-terminal", "--", "bash", "-c", f"sudo {cmd}; exec bash"], env=env
-        )
-
-    raise OSError("이 운영체제에서는 관리자 권한 새 터미널 실행이 지원되지 않습니다.")
+    return subprocess.Popen(cmd, env=env)
 
 
 def start_browser_and_browse() -> webdriver.Chrome:
