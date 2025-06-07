@@ -1,5 +1,9 @@
 """db 초기화 (초기 DB 생성 및 테이블 생성) 모듈"""
 
+import os
+import subprocess
+from datetime import datetime
+
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
@@ -7,6 +11,7 @@ from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 load_dotenv()
 
+CONTAINER_NAME = "fuzzk_postgres"
 
 class DBInit:
     """PostgreSQL 데이터베이스 생성 및 테이블 초기화를 담당하는 클래스."""
@@ -231,3 +236,29 @@ class DBInit:
         cur.close()
         conn.close()
         print("✅ 모든 테이블 생성 완료")
+
+    def backup_database(self):
+        """Docker 컨테이너의 PostgreSQL DB를 SQL 파일로 백업"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = os.path.join(os.path.dirname(__file__), "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+
+        filename = f"{DB_NAME}_{timestamp}.sql"
+        backup_path = os.path.join(backup_dir, filename)
+
+        try:
+            with open(backup_path, "w", encoding="utf-8") as f:
+                subprocess.run(
+                    [
+                        "docker", "exec", "-t",
+                        CONTAINER_NAME,
+                        "pg_dump",
+                        "-U", USER,
+                        DB_NAME
+                    ],
+                    stdout=f,
+                    check=True
+                )
+            print(f"💾 Docker 백업 완료: {backup_path}")
+        except subprocess.CalledProcessError as e:
+            print("❌ Docker 백업 실패:", e)

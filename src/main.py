@@ -64,6 +64,9 @@ def main():
 
     finally:
         # TODO: DB 백업
+        print("[INFO] DB 백업 시작...")
+        db.backup_database()
+        
         print("[INFO] 종료 중...")
         if driver:
             try:
