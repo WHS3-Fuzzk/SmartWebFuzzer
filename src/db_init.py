@@ -2,7 +2,10 @@
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from dotenv import load_dotenv
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
+
+load_dotenv()  # .env 파일 로드
 
 
 class DBInit:
@@ -29,7 +32,7 @@ class DBInit:
     def create_database_if_not_exists(self):
         """
         postgres DB에 접속하여 대상 DB가 없으면 새로 생성하고,
-        존재할 경우 기존 모든 테이블 데이터를 삭제합니다.
+        존재할 경우 기존 모든 테이블을 삭제합니다.
         """
         conn = self._connect(dbname="postgres")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
@@ -46,7 +49,7 @@ class DBInit:
             self._create_database()
         else:
             print(f"✅ 데이터베이스 '{self.db_name}'는 이미 존재합니다.")
-            self.truncate_all_tables()
+            self.drop_all_tables()
 
     def _create_database(self):
         """새로운 데이터베이스를 생성합니다."""
@@ -57,8 +60,8 @@ class DBInit:
         cur.close()
         conn.close()
 
-    def truncate_all_tables(self):
-        """기존 데이터베이스 내 모든 테이블의 데이터를 비웁니다."""
+    def drop_all_tables(self):
+        """데이터베이스 내 모든 테이블 자체를 삭제합니다."""
         conn = self._connect()
         cur = conn.cursor()
 
@@ -73,23 +76,24 @@ class DBInit:
                     WHERE schemaname = 'public'
                 )
                 LOOP
-                    EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
                 END LOOP;
             END $$;
-        """
+            """
         )
 
         conn.commit()
         cur.close()
         conn.close()
-        print("🧹 모든 테이블 데이터 TRUNCATE 완료")
+        print("💥 모든 테이블 DROP 완료")
 
     def create_tables(self):
         """모든 테이블을 생성합니다."""
         conn = self._connect()
         cur = conn.cursor()
 
-        table_sql = """
+        table_sql = """ 
+        -- (생략 없이 CREATE TABLE 문들 그대로 유지)
         CREATE TABLE IF NOT EXISTS filtered_request (
             id SERIAL PRIMARY KEY,
             is_http INTEGER,
