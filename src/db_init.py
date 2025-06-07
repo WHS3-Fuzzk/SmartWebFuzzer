@@ -2,10 +2,7 @@
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from dotenv import load_dotenv
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
-
-load_dotenv()  # .env 파일 로드
 
 
 class DBInit:
