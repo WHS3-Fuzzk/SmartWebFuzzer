@@ -1,6 +1,6 @@
-"""
-스마트 웹 퍼저의 시작점
-동작
+"""스마트 웹 퍼저의 시작점 모듈
+
+동작 순서:
 1. 인프라 실행 (docker-compose up)
 2. DB 초기화
 3. 프록시 서버 실행 (mitmproxy)
@@ -12,17 +12,12 @@ import os
 import time
 import urllib.parse
 from selenium.common.exceptions import WebDriverException
-from db_init import create_database_if_not_exists, create_tables
+from db_init import DBInit
 import proxy
 
 
 def main():
-    """
-    메인 함수:
-    1. 사용자로부터 타겟 URL 리스트 입력 받음
-    2. mitmproxy를 서브 프로세스로 실행
-    3. Selenium 브라우저를 mitmproxy 프록시로 실행 후 각 URL 접속
-    """
+    """스마트 웹 퍼저 메인 함수"""
     input_urls = input(
         "타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):\n> "
     )
@@ -32,16 +27,18 @@ def main():
         return
 
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
-    domains_str = ",".join(domains)
-    os.environ["TARGET_DOMAINS"] = domains_str
+    os.environ["TARGET_DOMAINS"] = ",".join(domains)
 
     # TODO: 인프라 docker-compose 실행
-    # TODO: DB 초기화
-    create_database_if_not_exists()
-    create_tables()
+
+    # DB 초기화
+    db = DBInit()
+    db.create_database_if_not_exists()
+    db.create_tables()
 
     # TODO: 대시보드 모듈 실행
     # TODO: 스캐너 트리거 모듈 실행
+
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
@@ -67,7 +64,6 @@ def main():
 
     finally:
         # TODO: DB 백업
-
         print("[INFO] 종료 중...")
         if driver:
             try:
@@ -76,8 +72,7 @@ def main():
                 print(f"[WARN] 브라우저 종료 중 오류: {exc}")
         mitmproxy_process.terminate()
         mitmproxy_process.wait()
-        print("[INFO] 종료")
-        # print("lsof -i :8080 -> kill <PID>")
+        print("[INFO] 종료 완료")
 
 
 if __name__ == "__main__":
