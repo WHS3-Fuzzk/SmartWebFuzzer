@@ -87,8 +87,7 @@ class DBInit:
         """DB 내 모든 테이블을 생성합니다."""
         conn = self._connect()
         cur = conn.cursor()
-        table_sql = """ 
-        -- (중략) 모든 CREATE TABLE 쿼리
+        table_sql = """
         CREATE TABLE IF NOT EXISTS filtered_request (
             id SERIAL PRIMARY KEY,
             is_http INTEGER,
@@ -99,7 +98,6 @@ class DBInit:
             timestamp TIMESTAMP
         );
 
-        -- 나머지 테이블 생성 SQL 그대로 유지
         CREATE TABLE IF NOT EXISTS filtered_response (
             id SERIAL PRIMARY KEY,
             request_id INTEGER NOT NULL REFERENCES filtered_request(id),
