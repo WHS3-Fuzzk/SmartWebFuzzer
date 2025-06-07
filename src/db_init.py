@@ -1,18 +1,18 @@
-"""db 초기화 (초기 DB 생성 및 테이블 생성)"""
+"""db 초기화 (초기 DB 생성 및 테이블 생성) 모듈"""
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
-load_dotenv()  # .env 파일 로드
+load_dotenv()
 
 
 class DBInit:
     """PostgreSQL 데이터베이스 생성 및 테이블 초기화를 담당하는 클래스."""
 
     def __init__(self):
-        """DB 접속에 필요한 환경변수 설정"""
+        """DB 접속에 필요한 환경변수를 초기화합니다."""
         self.db_name = DB_NAME
         self.user = USER
         self.password = PASSWORD
@@ -20,7 +20,7 @@ class DBInit:
         self.port = PORT
 
     def _connect(self, dbname=None):
-        """데이터베이스 커넥션을 반환합니다."""
+        """지정된 데이터베이스에 연결합니다."""
         return psycopg2.connect(
             dbname=dbname or self.db_name,
             user=self.user,
@@ -37,10 +37,8 @@ class DBInit:
         conn = self._connect(dbname="postgres")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
-
         cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (self.db_name,))
         exists = cur.fetchone()
-
         cur.close()
         conn.close()
 
@@ -52,7 +50,7 @@ class DBInit:
             self.drop_all_tables()
 
     def _create_database(self):
-        """새로운 데이터베이스를 생성합니다."""
+        """대상 데이터베이스를 생성합니다."""
         conn = self._connect(dbname="postgres")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
@@ -61,10 +59,9 @@ class DBInit:
         conn.close()
 
     def drop_all_tables(self):
-        """데이터베이스 내 모든 테이블 자체를 삭제합니다."""
+        """데이터베이스 내 모든 테이블을 삭제합니다."""
         conn = self._connect()
         cur = conn.cursor()
-
         cur.execute(
             """
             DO $$
@@ -81,19 +78,17 @@ class DBInit:
             END $$;
             """
         )
-
         conn.commit()
         cur.close()
         conn.close()
         print("💥 모든 테이블 DROP 완료")
 
     def create_tables(self):
-        """모든 테이블을 생성합니다."""
+        """DB 내 모든 테이블을 생성합니다."""
         conn = self._connect()
         cur = conn.cursor()
-
         table_sql = """ 
-        -- (생략 없이 CREATE TABLE 문들 그대로 유지)
+        -- (중략) 모든 CREATE TABLE 쿼리
         CREATE TABLE IF NOT EXISTS filtered_request (
             id SERIAL PRIMARY KEY,
             is_http INTEGER,
@@ -104,6 +99,7 @@ class DBInit:
             timestamp TIMESTAMP
         );
 
+        -- 나머지 테이블 생성 SQL 그대로 유지
         CREATE TABLE IF NOT EXISTS filtered_response (
             id SERIAL PRIMARY KEY,
             request_id INTEGER NOT NULL REFERENCES filtered_request(id),
@@ -232,16 +228,8 @@ class DBInit:
             body TEXT
         );
         """
-
         cur.execute(table_sql)
         conn.commit()
         cur.close()
         conn.close()
         print("✅ 모든 테이블 생성 완료")
-
-
-# 실행
-if __name__ == "__main__":
-    db = DBInit()
-    db.create_database_if_not_exists()
-    db.create_tables()
