@@ -9,7 +9,10 @@ load_dotenv()  # .env 파일 로드
 
 
 class DBInit:
+    """PostgreSQL 데이터베이스 생성 및 테이블 초기화를 담당하는 클래스."""
+
     def __init__(self):
+        """DB 접속에 필요한 환경변수 설정"""
         self.db_name = DB_NAME
         self.user = USER
         self.password = PASSWORD
@@ -17,6 +20,7 @@ class DBInit:
         self.port = PORT
 
     def _connect(self, dbname=None):
+        """데이터베이스 커넥션을 반환합니다."""
         return psycopg2.connect(
             dbname=dbname or self.db_name,
             user=self.user,
@@ -26,7 +30,10 @@ class DBInit:
         )
 
     def create_database_if_not_exists(self):
-        """postgres DB에 접속해, 대상 DB가 없으면 새로 생성하고 있으면 truncate"""
+        """
+        postgres DB에 접속하여 대상 DB가 없으면 새로 생성하고,
+        존재할 경우 기존 모든 테이블 데이터를 삭제합니다.
+        """
         conn = self._connect(dbname="postgres")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
@@ -45,6 +52,7 @@ class DBInit:
             self.truncate_all_tables()
 
     def _create_database(self):
+        """새로운 데이터베이스를 생성합니다."""
         conn = self._connect(dbname="postgres")
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cur = conn.cursor()
@@ -53,11 +61,10 @@ class DBInit:
         conn.close()
 
     def truncate_all_tables(self):
-        """모든 테이블 내용 비우기"""
+        """기존 데이터베이스 내 모든 테이블의 데이터를 비웁니다."""
         conn = self._connect()
         cur = conn.cursor()
 
-        # FK 무시하고 전부 비우기 (CASCADE)
         cur.execute(
             """
             DO $$
@@ -81,12 +88,11 @@ class DBInit:
         print("🧹 모든 테이블 데이터 TRUNCATE 완료")
 
     def create_tables(self):
-        """대상 DB에 접속해 모든 테이블 생성"""
+        """모든 테이블을 생성합니다."""
         conn = self._connect()
         cur = conn.cursor()
 
         table_sql = """
-        -- CREATE TABLE 쿼리들 생략 없이 그대로 작성
         CREATE TABLE IF NOT EXISTS filtered_request (
             id SERIAL PRIMARY KEY,
             is_http INTEGER,
