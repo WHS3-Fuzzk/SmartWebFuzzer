@@ -22,7 +22,7 @@ class DBInit:
             user=self.user,
             password=self.password,
             host=self.host,
-            port=self.port
+            port=self.port,
         )
 
     def create_database_if_not_exists(self):
@@ -58,7 +58,8 @@ class DBInit:
         cur = conn.cursor()
 
         # FK 무시하고 전부 비우기 (CASCADE)
-        cur.execute("""
+        cur.execute(
+            """
             DO $$
             DECLARE
                 r RECORD;
@@ -71,7 +72,8 @@ class DBInit:
                     EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
                 END LOOP;
             END $$;
-        """)
+        """
+        )
 
         conn.commit()
         cur.close()
