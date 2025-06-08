@@ -63,10 +63,10 @@ def main():
         print(f"[ERROR] 메인 프로세스 중 오류 발생: {exc}")
 
     finally:
-        # TODO: DB 백업
+        # DB 백업
         print("[INFO] DB 백업 시작...")
         db.backup_database()
-        
+
         print("[INFO] 종료 중...")
         if driver:
             try:

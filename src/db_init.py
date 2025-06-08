@@ -13,6 +13,7 @@ load_dotenv()
 
 CONTAINER_NAME = "fuzzk_postgres"
 
+
 class DBInit:
     """PostgreSQL 데이터베이스 생성 및 테이블 초기화를 담당하는 클래스."""
 
@@ -240,7 +241,9 @@ class DBInit:
     def backup_database(self):
         """Docker 컨테이너의 PostgreSQL DB를 SQL 파일로 백업"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = os.path.join(os.path.dirname(__file__), "backup")
+        backup_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "db_backups"
+        )
         os.makedirs(backup_dir, exist_ok=True)
 
         filename = f"{DB_NAME}_{timestamp}.sql"
@@ -250,15 +253,18 @@ class DBInit:
             with open(backup_path, "w", encoding="utf-8") as f:
                 subprocess.run(
                     [
-                        "docker", "exec", "-t",
-                        CONTAINER_NAME,
-                        "pg_dump",
-                        "-U", USER,
-                        DB_NAME
+                        str("docker"),
+                        str("exec"),
+                        str("-t"),
+                        str(CONTAINER_NAME),
+                        str("pg_dump"),
+                        str("-U"),
+                        str(USER),
+                        str(DB_NAME),
                     ],
                     stdout=f,
-                    check=True
+                    check=True,
                 )
-            print(f"💾 Docker 백업 완료: {backup_path}")
+            print(f"💾 DB 백업 완료: {backup_path}")
         except subprocess.CalledProcessError as e:
-            print("❌ Docker 백업 실패:", e)
+            print("❌ DB 백업 실패:", e)
