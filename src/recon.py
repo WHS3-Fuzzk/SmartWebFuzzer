@@ -11,6 +11,30 @@ from db_reader import DBReader
 from db_writer import insert_recon
 
 
+def parse_software_list(tech_list):
+    """
+    wad에서 반환된 기술 스택 리스트를 파싱해 소프트웨어 목록 생성
+
+    Args:
+        tech_list (list): wad JSON에서 추출한 기술 스택 리스트
+
+    Returns:
+        list: 소프트웨어 정보 딕셔너리 리스트
+    """
+    software_list = []
+    for tech in tech_list:
+        categories = [c.strip() for c in tech.get("type", "").split(",")]
+        for category in categories:
+            software_list.append(
+                {
+                    "category": category,
+                    "name": tech.get("app", "unknown"),
+                    "version": tech.get("ver", ""),
+                }
+            )
+    return software_list
+
+
 def run_recon(domain: str, path: str) -> int:
     """
     주어진 도메인과 엔드포인트에 대해 wad로 기술스택을 탐지하고 DB에 저장
@@ -25,45 +49,41 @@ def run_recon(domain: str, path: str) -> int:
     reader = DBReader()
     recon_id = reader.get_recon_id_by_domain_path(domain, path)
     if recon_id != -1:
-        # print("이미 저장된 정보가 있습니다.", recon_id)
         return recon_id
 
     url = f"http://{domain}{path}"
 
-    # wad CLI 실행 (wad가 설치되어 있어야 함)
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"  # UTF-8 강제 설정
 
-    result = subprocess.run(
-        ["wad", "-u", url],
-        capture_output=True,
-        text=True,
-        check=True,
-        env=os.environ.copy(),
-    )
-    wad_output = result.stdout
-
-    # wad_output에서 JSON만 추출
-    match = re.search(r"({.*})", wad_output, re.DOTALL)
-    if not match:
-        print("wad 결과에서 JSON을 찾을 수 없습니다.")
+    try:
+        result = subprocess.run(
+            ["wad", "-u", url],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            env=env,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] wad 실행 실패: {e}")
         return -1
-    # print(match)
-    wad_json = json.loads(match.group(1))
 
-    # wad 결과 파싱 (예시: wad_json['technologies'])
+    match = re.search(r"({.*})", result.stdout, re.DOTALL)
+    if not match:
+        print("[ERROR] wad 결과에서 JSON을 찾을 수 없습니다.")
+        return -1
+
+    try:
+        wad_json = json.loads(match.group(1))
+    except json.JSONDecodeError as je:
+        print("[ERROR] JSON 파싱 실패:", je)
+        return -1
+
     tech_list = next(iter(wad_json.values()), [])
-    software_list = []
-    for tech in tech_list:
-        categories = [c.strip() for c in tech.get("type", "").split(",")]
-        for category in categories:
-            software_list.append(
-                {
-                    "category": category,
-                    "name": tech.get("app", "unknown"),
-                    "version": tech.get("ver", ""),
-                }
-            )
+    software_list = parse_software_list(tech_list)
 
-    # DB 저장
     recon = {
         "domain": domain,
         "path": path,
