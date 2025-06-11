@@ -2,6 +2,7 @@
 wad를 통해 엔드포인트의 기술스택 정보를 수집하는 모듈
 """
 
+import os
 import subprocess
 import json
 import re
@@ -24,14 +25,19 @@ def run_recon(domain: str, path: str) -> int:
     reader = DBReader()
     recon_id = reader.get_recon_id_by_domain_path(domain, path)
     if recon_id != -1:
-        print("이미 저장된 정보가 있습니다.", recon_id)
+        # print("이미 저장된 정보가 있습니다.", recon_id)
         return recon_id
 
     url = f"http://{domain}{path}"
 
     # wad CLI 실행 (wad가 설치되어 있어야 함)
+
     result = subprocess.run(
-        ["wad", "-u", url], capture_output=True, text=True, check=True
+        ["wad", "-u", url],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=os.environ.copy(),
     )
     wad_output = result.stdout
 
@@ -40,7 +46,7 @@ def run_recon(domain: str, path: str) -> int:
     if not match:
         print("wad 결과에서 JSON을 찾을 수 없습니다.")
         return -1
-    print(match)
+    # print(match)
     wad_json = json.loads(match.group(1))
 
     # wad 결과 파싱 (예시: wad_json['technologies'])

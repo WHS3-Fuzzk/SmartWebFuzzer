@@ -101,6 +101,10 @@ def insert_filtered_request(request: dict) -> int:
 def insert_filtered_response(response: dict, request_id: int) -> int:
     """
     필터링된 응답 데이터를 DB에 저장하고 생성된 ID 반환
+
+    FIXME:
+    ValueError: A string literal cannot contain NUL (0x00) characters.
+    응답에 Null 문자가 포함된 상태에서 필터링 없이 DB 저장 시도 시 에러 발생
     """
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
