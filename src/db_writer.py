@@ -10,9 +10,7 @@ from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 
 def insert_filtered_request(request: dict) -> int:
-    """
-    필터링된 요청 데이터를 DB에 저장하고 생성된 ID 반환
-    """
+    """필터링된 요청 데이터를 DB에 저장하고 생성된 ID 반환"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -100,9 +98,7 @@ def insert_filtered_request(request: dict) -> int:
 
 
 def insert_filtered_response(response: dict, request_id: int) -> int:
-    """
-    필터링된 응답 데이터를 DB에 저장하고 생성된 ID 반환
-    """
+    """필터링된 응답 데이터를 DB에 저장하고 생성된 ID 반환"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -169,9 +165,7 @@ def insert_filtered_response(response: dict, request_id: int) -> int:
 
 
 def insert_fuzzed_request(request: dict) -> int:
-    """
-    퍼징된 요청 데이터를 DB에 저장하고 생성된 ID 반환
-    """
+    """퍼징된 요청 데이터를 DB에 저장하고 생성된 ID 반환"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -263,9 +257,7 @@ def insert_fuzzed_request(request: dict) -> int:
 
 
 def insert_fuzzed_response(response: dict, request_id: int) -> int:
-    """
-    퍼징된 응답 데이터를 DB에 저장하고 생성된 ID 반환
-    """
+    """퍼징된 응답 데이터를 DB에 저장하고 생성된 ID 반환"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -332,9 +324,7 @@ def insert_fuzzed_response(response: dict, request_id: int) -> int:
 
 
 def insert_recon(recon: dict) -> int:
-    """
-    탐지된 서버 정보(Wappalyzer 결과 등)를 recon 테이블에 저장
-    """
+    """탐지된 서버 정보(Wappalyzer 결과 등)를 recon 테이블에 저장"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -382,9 +372,7 @@ def insert_recon(recon: dict) -> int:
 
 
 def insert_preflight_request(preflight: dict) -> int:
-    """
-    프리플라이트 요청 데이터를 DB에 저장하고 생성된 ID 반환
-    """
+    """프리플라이트 요청 데이터를 DB에 저장하고 생성된 ID 반환"""
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
     )
@@ -393,7 +381,8 @@ def insert_preflight_request(preflight: dict) -> int:
         cur.execute(
             """
             INSERT INTO preflight_request 
-            (domain, path, origin, access_control_request_method, timestamp, headers, preflight_allowed)
+            (domain, path, origin, access_control_request_method, 
+             timestamp, headers, preflight_allowed)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
