@@ -10,7 +10,11 @@ from datetime import datetime
 
 from mitmproxy import http
 
-from db_writer import insert_filtered_request, insert_filtered_response
+from db_writer import (
+    insert_filtered_request,
+    insert_filtered_response,
+    insert_preflight_request,
+)
 from recon import run_recon
 
 # flow.id 와 request_id 매핑용
@@ -23,10 +27,11 @@ seen_response_keys = set()
 # 중요 파라미터 키 (값까지 체크 대상)
 KEY_PARAMS_TO_INCLUDE_VALUES = {"cmd", "action", "mode", "type"}
 
+# 타겟 도메인 리스트 환경변수에서 불러오기
 domains_str = os.getenv("TARGET_DOMAINS", "")
 TARGET_DOMAINS = [d.strip() for d in domains_str.split(",") if d.strip()]
 
-
+# 제외할 URL 패턴 정의 (정적 리소스 등)
 EXCLUDED_PATTERNS = [
     "favicon",
     "robots\\.txt",
@@ -118,18 +123,15 @@ def is_valid_response(flow: http.HTTPFlow) -> bool:
     return True
 
 
-def flow_to_request_dict(flow: http.HTTPFlow):
+def flow_to_request_dict(flow: http.HTTPFlow) -> dict:
     """
     insert_filtered_request 인터페이스에 맞게 변환
     """
-    # 쿼리 파라미터 변환
     query_params = []
     for k, v in flow.request.query.items(multi=True):
         query_params.append({"key": k, "value": v, "source": "url"})
 
-    # body 변환
     content_type = flow.request.headers.get("content-type", "")
-    # charset 파싱
     charset = "utf-8"
     if "charset=" in content_type:
         charset = content_type.split("charset=")[-1].split(";")[0].strip()
@@ -151,7 +153,6 @@ def flow_to_request_dict(flow: http.HTTPFlow):
         else None
     )
 
-    # is_http: HTTP/HTTPS면 1, 아니면 0
     scheme = flow.request.scheme.lower()
     is_http = 1 if scheme in ("http", "https") else 0
 
@@ -169,7 +170,7 @@ def flow_to_request_dict(flow: http.HTTPFlow):
     return request_dict
 
 
-def flow_to_response_dict(flow: http.HTTPFlow):
+def flow_to_response_dict(flow: http.HTTPFlow) -> dict:
     """
     insert_filtered_response 인터페이스에 맞게 변환
     """
@@ -216,6 +217,11 @@ def request(flow: http.HTTPFlow) -> None:
     if is_excluded_url(url):
         return
 
+    # OPTIONS 요청 → 프리플라이트 수집용으로 태깅
+    if flow.request.method == "OPTIONS":
+        flow.metadata["is_preflight"] = True
+        return
+
     if is_duplicated_by_flow(flow, mode="request"):
         return
 
@@ -224,7 +230,6 @@ def request(flow: http.HTTPFlow) -> None:
     request_dict = flow_to_request_dict(flow)
     request_id = insert_filtered_request(request_dict)
 
-    # flow.id와 request_id 매핑하여 저장 -> 응답에서 사용
     flow_id_to_request_id_map[flow.id] = request_id
 
 
@@ -232,25 +237,48 @@ def response(flow: http.HTTPFlow) -> None:
     """
     mitmproxy 응답 이벤트 처리
     """
-    if not is_valid_response(flow):
+    if not is_valid_request(flow):
         return
 
     url = flow.request.pretty_url.lower()
     if is_excluded_url(url):
         return
 
+    # 프리플라이트 응답 처리
+    if flow.request.method == "OPTIONS" and flow.metadata.get("is_preflight"):
+        assert flow.response is not None  # IDE 타입 안정성 확보
+
+        status_code = flow.response.status_code
+        allow_origin = flow.response.headers.get("Access-Control-Allow-Origin")
+        allow_methods = flow.response.headers.get("Access-Control-Allow-Methods")
+        preflight_allowed = status_code == 200 and allow_origin and allow_methods
+
+        preflight_data = {
+            "domain": flow.request.host,
+            "path": flow.request.path,
+            "origin": flow.request.headers.get("Origin"),
+            "access_control_request_method": flow.request.headers.get(
+                "Access-Control-Request-Method"
+            ),
+            "timestamp": datetime.now(),
+            "headers": dict(flow.response.headers),
+            "preflight_allowed": preflight_allowed,
+        }
+        insert_preflight_request(preflight_data)
+        return
+
+    if not is_valid_response(flow):
+        return
+
     if is_duplicated_by_flow(flow, mode="response"):
         return
 
-    # 응답 저장 (DB_Writer)
     response_dict = flow_to_response_dict(flow)
-
-    # flow.id로 이 응답에 대응하는 request_id 조회
     request_id = flow_id_to_request_id_map.get(flow.id)
 
     if request_id is not None:
         insert_filtered_response(response_dict, request_id)
     else:
         print(
-            f"[Error]request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
+            f"[Error] request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
         )
