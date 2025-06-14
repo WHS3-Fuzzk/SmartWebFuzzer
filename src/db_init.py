@@ -231,6 +231,17 @@ class DBInit:
             content_encoding VARCHAR,
             body TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS preflight_request (
+            id SERIAL PRIMARY KEY,
+            domain VARCHAR,
+            path VARCHAR,
+            origin VARCHAR,
+            access_control_request_method VARCHAR,
+            timestamp TIMESTAMP,
+            headers JSONB,
+            preflight_allowed BOOLEAN
+        );
         """
         cur.execute(table_sql)
         conn.commit()
