@@ -1,11 +1,11 @@
-"""
-DB 삽입 관련 함수 모듈
+"""DB 삽입 관련 함수 모듈
 환경변수에서 DB 연결 정보를 불러와 PostgreSQL에 데이터를 저장함
 """
 
 import psycopg2
 from psycopg2.extras import execute_values
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
+import psycopg2.extras
 
 
 def insert_filtered_request(request: dict) -> int:
@@ -101,10 +101,6 @@ def insert_filtered_request(request: dict) -> int:
 def insert_filtered_response(response: dict, request_id: int) -> int:
     """
     필터링된 응답 데이터를 DB에 저장하고 생성된 ID 반환
-
-    FIXME:
-    ValueError: A string literal cannot contain NUL (0x00) characters.
-    응답에 Null 문자가 포함된 상태에서 필터링 없이 DB 저장 시도 시 에러 발생
     """
     conn = psycopg2.connect(
         dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
@@ -376,6 +372,47 @@ def insert_recon(recon: dict) -> int:
 
         conn.commit()
         return recon_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+        conn.close()
+
+
+def insert_preflight_request(preflight: dict) -> int:
+    """
+    프리플라이트 요청 데이터를 DB에 저장하고 생성된 ID 반환
+    """
+    conn = psycopg2.connect(
+        dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
+    )
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            INSERT INTO preflight_request 
+            (domain, path, origin, access_control_request_method, timestamp, headers, preflight_allowed)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                preflight.get("domain"),
+                preflight.get("path"),
+                preflight.get("origin"),
+                preflight.get("access_control_request_method"),
+                preflight.get("timestamp"),
+                psycopg2.extras.Json(preflight.get("headers")),
+                preflight.get("preflight_allowed"),
+            ),
+        )
+        result = cur.fetchone()
+        if result is None:
+            raise ValueError("No ID returned after inserting preflight_request")
+        preflight_id = result[0]
+
+        conn.commit()
+        return preflight_id
     except Exception as e:
         conn.rollback()
         raise e
