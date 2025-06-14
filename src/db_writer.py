@@ -3,9 +3,10 @@
 """
 
 import psycopg2
-from psycopg2.extras import execute_values
-from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 import psycopg2.extras
+from psycopg2.extras import execute_values
+
+from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 
 def insert_filtered_request(request: dict) -> int:
