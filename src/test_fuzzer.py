@@ -14,7 +14,7 @@ from requests.exceptions import (
     Timeout,
 )
 
-from fuzzing_scheduler import send_fuzz_request
+from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 
 
 def test_request(request_data, description):

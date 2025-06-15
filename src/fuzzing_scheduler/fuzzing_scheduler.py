@@ -1,12 +1,33 @@
 """
-이 모듈은 퍼저에서 보내는 변조된 요청을 중앙화하여 관리하는 역할을 수행합니다.
+이 모듈은 celery를 활용해 퍼저에서 생성한 변조된 HTTP 요청을 비동기·분산 방식으로 전송하고,
+응답 분석까지 워크플로우로 관리하는 중앙 퍼징 스케줄러 역할을 수행합니다.
+대규모 분산 퍼징 환경에 적합하며, 각 요청과 분석 작업을 celery task로 처리합니다.
+fuzzing_scheduler는 퍼징 요청의 분산/스케줄링만 담당하고,
+실제로 어떤 응답이 취약한지 분석하는 로직은
+각 스캐너(예: ExampleScanner)에서 구현해야 합니다.
+
 필요조건
 - redis 컨테이너 실행 중
 - 아래 명령 실행
-celery -A fuzzing_scheduler worker --concurrency=2 --loglevel=INFO
+# cd src/
+celery -A fuzzing_scheduler.fuzzing_scheduler worker \
+    -Q fuzz_request \
+    --concurrency=10 \
+    --loglevel=INFO
 
+celery -A fuzzing_scheduler.fuzzing_scheduler worker \
+    -Q analyze_response \
+    --concurrency=5 \
+    --loglevel=INFO
+
+-A: 어떤 모듈에서 celery app을 찾을 것인가"를 의미합니다
+-Q: 큐 이름을 지정합니다. 여기서는 "fuzz_request", "analyze_response"큐를 사용합니다.
+worker: 워커 프로세스를 실행합니다.
+--concurrency=2: 동시에 2개의 작업을 처리할 수 있는 워커 프로세스(스레드/프로세스) 수를 지정합니다.
+--loglevel=INFO: 로그 레벨을 INFO로 설정하여 실행 중인 작업의 상태를 출력합니다.
 """
 
+from typing import Any, Dict
 from celery import Celery
 import requests
 
@@ -16,11 +37,16 @@ celery_app = Celery(
     broker="redis://localhost:6379/0",
     backend="redis://localhost:6379/1",
     task_acks_late=True,
+    imports=[
+        "fuzzing_scheduler.fuzzing_scheduler",
+        "scanners.example",  # 예시 스캐너 모듈
+    ],
 )
+# celery_app.autodiscover_tasks(["scanners"])
 
 
-@celery_app.task(name="tasks.send_fuzz_request")
-def send_fuzz_request(request_data):
+@celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
+def send_fuzz_request(request_data) -> Dict[str, Any]:
     """HTTP 요청을 보내고 응답을 반환합니다.
 
     Args:
