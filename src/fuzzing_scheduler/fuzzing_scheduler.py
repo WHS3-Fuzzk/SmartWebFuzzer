@@ -70,7 +70,7 @@ def send_fuzz_request(request_data) -> Dict[str, Any]:
             - content_length (str): Content-Length 헤더
             - cookies (dict): 응답 쿠키
             - request_info (dict): 실제로 보낸 요청 정보
-            - error (str, optional): 요청 실패 시 에러 정보
+            - request_data (dict): 요청 데이터 사본
             - redirect_history (list, optional): 리다이렉트 히스토리
     """
 
@@ -103,6 +103,7 @@ def send_fuzz_request(request_data) -> Dict[str, Any]:
                 else str(response.request.body)
             ),
         },
+        "request_data": request_data,
         "redirect_history": (
             [
                 {
