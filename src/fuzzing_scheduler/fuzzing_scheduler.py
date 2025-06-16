@@ -27,9 +27,12 @@ worker: 워커 프로세스를 실행합니다.
 --loglevel=INFO: 로그 레벨을 INFO로 설정하여 실행 중인 작업의 상태를 출력합니다.
 """
 
+from datetime import datetime
 from typing import Any, Dict
 from celery import Celery
 import requests
+
+from typedefs import RequestData
 
 
 celery_app = Celery(
@@ -37,6 +40,7 @@ celery_app = Celery(
     broker="redis://localhost:6379/0",
     backend="redis://localhost:6379/1",
     task_acks_late=True,
+    # TODO: imports에 스캐너 모듈을 추가하여 자동으로 로드되도록 설정 필요
     imports=[
         "fuzzing_scheduler.fuzzing_scheduler",
         "scanners.example",  # 예시 스캐너 모듈
@@ -46,52 +50,22 @@ celery_app = Celery(
 
 
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
-def send_fuzz_request(request_data) -> Dict[str, Any]:
-    """HTTP 요청을 보내고 응답을 반환합니다.
-
-    Args:
-        request_data (dict): 요청 데이터
-            - method (str): HTTP 메소드 (GET, POST, PUT 등)
-            - url (str): 요청할 URL
-            - headers (dict, optional): HTTP 헤더
-            - params (dict, optional): URL 쿼리 파라미터
-            - data (str, optional): 요청 본문
-            - json (dict, optional): JSON 형식의 요청 본문
-            - allow_redirects (bool, optional): 리다이렉트 허용 여부 (기본값: True)
-            - timeout (int, optional): 요청 타임아웃 (기본값: 10초)
-
-    Returns:
-        dict: 응답 데이터
-            - status_code (int): HTTP 상태 코드
-            - headers (dict): 응답 헤더
-            - text (str): 응답 본문
-            - elapsed_time (float): 요청 처리 시간
-            - content_type (str): Content-Type 헤더
-            - content_length (str): Content-Length 헤더
-            - cookies (dict): 응답 쿠키
-            - request_info (dict): 실제로 보낸 요청 정보
-            - request_data (dict): 요청 데이터 사본
-            - redirect_history (list, optional): 리다이렉트 히스토리
-    """
-
-    response = requests.request(
-        method=request_data["method"],
-        url=request_data["url"],
-        headers=request_data.get("headers", {}),
-        params=request_data.get("params", {}),
-        data=request_data.get("data", ""),
-        json=request_data.get("json"),
-        allow_redirects=request_data.get("allow_redirects", True),
-        timeout=request_data.get("timeout", 10),
-    )
+def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, Any]:
+    """requests.request의 모든 인자를 받아 HTTP 요청을 전송하는 범용 래퍼 함수"""
+    # RequestData의 형태로 인자가 전달되면 requests.request에 맞게 변환
+    if request_data:
+        kwargs.update(requestdata_to_requests_kwargs(request_data))
+    response = requests.request(*args, **kwargs, timeout=30)
 
     return {
         "status_code": response.status_code,
         "headers": dict(response.headers),
         "text": response.text,
         "elapsed_time": response.elapsed.total_seconds(),
-        "content_type": response.headers.get("content-type", ""),
-        "content_length": response.headers.get("content-length", ""),
+        "http_version": response.raw.version,
+        "url": response.url,
+        "body": response.content.decode("utf-8"),
+        "timestamp": datetime.now(),
         "cookies": dict(response.cookies),
         "request_info": {
             "method": response.request.method,
@@ -116,4 +90,22 @@ def send_fuzz_request(request_data) -> Dict[str, Any]:
             if response.history
             else None
         ),
+    }
+
+
+def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
+    """RequestData 객체를 requests.request에 필요한 인자 형태로 변환"""
+    method = request_data["meta"]["method"]
+    url = f"http://{request_data['meta']['domain']}{request_data['meta']['path']}"
+    headers = {h["key"]: h["value"] for h in (request_data.get("headers") or [])}
+    params = {q["key"]: q["value"] for q in (request_data.get("query_params") or [])}
+    data = None
+    if request_data["body"] and request_data["body"].get("body"):
+        data = request_data["body"]["body"]
+    return {
+        "method": method,
+        "url": url,
+        "headers": headers,
+        "params": params,
+        "data": data,
     }

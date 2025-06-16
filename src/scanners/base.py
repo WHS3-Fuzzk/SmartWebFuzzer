@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, List
 import logging
 
+from typedefs import RequestData
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,7 +33,7 @@ class BaseScanner(ABC):
 
     # ------- 필수 메서드 -------
     @abstractmethod
-    def is_target(self, request: Dict[str, Any]) -> bool:
+    def is_target(self, request_id: int, request: RequestData) -> bool:
         """취약점 분류기 역할: 이 스캐너가 해당 요청을 퍼징할 가치가 있는지 판단"""
 
     @abstractmethod
@@ -43,8 +45,8 @@ class BaseScanner(ABC):
     @abstractmethod
     def run(
         self,
-        request: Dict[str, Any],
         request_id: int,
+        request: RequestData,
     ) -> List[Dict[str, Any]]:
         """
         request 에 대해 퍼징을 실행하고, 변조된 요청을 비동기로 전송하여
