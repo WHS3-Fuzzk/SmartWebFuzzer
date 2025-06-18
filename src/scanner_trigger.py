@@ -58,7 +58,7 @@ class ScannerTrigger:
                         data = self.db_reader.select_filtered_request(req_id)
                         if not data:
                             continue
-                        print(f"Processing request ID: {req_id},\n Data: {data}")
+                        print(f"Processing request ID: {req_id},\n")
                         # 스캐너를 개별 쓰레드로 실행
                         for scanner in scanners:
                             print(

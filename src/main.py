@@ -3,19 +3,22 @@
 동작 순서:
 1. 인프라 실행 (docker-compose up)
 2. DB 초기화
-3. 프록시 서버 실행 (mitmproxy)
-4. 셀레니움 브라우저 실행
-5. 대시보드 모듈 실행
+3. Celery 워커 실행
+4. 프록시 서버 실행 (mitmproxy)
+5. 셀레니움 브라우저 실행
+6. 대시보드 모듈 실행
 """
 
 import os
 import time
 import urllib.parse
 import threading
+import subprocess
 from selenium.common.exceptions import WebDriverException
 from db_init import DBInit
 import proxy
 from scanner_trigger import ScannerTrigger
+from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
 
 
 def main():
@@ -37,6 +40,9 @@ def main():
     db = DBInit()
     db.create_database_if_not_exists()
     db.create_tables()
+
+    # Celery 워커 시작
+    celery_workers = start_celery_workers()
 
     # TODO: 대시보드 모듈 실행
 
@@ -72,13 +78,24 @@ def main():
         db.backup_database()
 
         print("[INFO] 종료 중...")
+
+        # Celery 워커들 종료
+        for worker in celery_workers:
+            worker.terminate()
+            worker.wait(timeout=10)
+
         if driver:
             try:
                 driver.quit()
             except WebDriverException as exc:
                 print(f"[WARN] 브라우저 종료 중 오류: {exc}")
-        mitmproxy_process.terminate()
-        mitmproxy_process.wait()
+
+        try:
+            mitmproxy_process.terminate()
+            mitmproxy_process.wait()
+        except (subprocess.SubprocessError, OSError) as exc:
+            print(f"[WARN] mitmproxy 종료 중 오류: {exc}")
+
         print("[INFO] 종료 완료")
 
 

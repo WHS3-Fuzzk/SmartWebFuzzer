@@ -27,29 +27,8 @@
    pip install -r requirements.txt
    ```
 
-5. **Celery 워커 실행**
+5. **메인 프로그램 실행**
 
-   퍼징 요청 전송을 위한 워커:
-
-   ```sh
-   cd src/
-   celery -A fuzzing_scheduler.fuzzing_scheduler worker \
-       -Q fuzz_request \
-       --concurrency=4 \
-       --loglevel=INFO
-   ```
-
-   응답 분석을 위한 워커:
-
-   ```sh
-   cd src/
-   celery -A fuzzing_scheduler.fuzzing_scheduler worker \
-       -Q analyze_response \
-       --concurrency=2 \
-       --loglevel=INFO
-   ```
-
-6. **메인 프로그램 실행**
    ```sh
    python main.py
    ```
