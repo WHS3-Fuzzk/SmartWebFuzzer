@@ -11,9 +11,11 @@
 import os
 import time
 import urllib.parse
+import threading
 from selenium.common.exceptions import WebDriverException
 from db_init import DBInit
 import proxy
+from scanner_trigger import ScannerTrigger
 
 
 def main():
@@ -37,7 +39,9 @@ def main():
     db.create_tables()
 
     # TODO: 대시보드 모듈 실행
-    # TODO: 스캐너 트리거 모듈 실행
+
+    print("[INFO] 스캐너 트리거 시작 중...")
+    threading.Thread(target=ScannerTrigger().run, daemon=True).start()
 
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
