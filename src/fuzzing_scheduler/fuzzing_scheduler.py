@@ -21,13 +21,15 @@ fuzzing_scheduler는 퍼징 요청의 분산/스케줄링과 워커 관리를 �
 import os
 import time
 import subprocess
-import chardet
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from celery import Celery
+
+import chardet
 import requests
+from celery import Celery
 
 from typedefs import RequestData
+
 
 # 멀티프로세싱 환경에서 celery 오류 방지
 os.environ.setdefault("FORKED_BY_MULTIPROCESSING", "1")
@@ -124,10 +126,7 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
 
     # 인코딩 자동 감지
     detected_encoding = chardet.detect(response.content)["encoding"]
-    try:
-        body = response.content.decode(detected_encoding or "utf-8", errors="replace")
-    except Exception as e:
-        body = f"[Decoding error: {e}]"
+    body = response.content.decode(detected_encoding or "utf-8", errors="replace")
 
     return {
         "status_code": response.status_code,
