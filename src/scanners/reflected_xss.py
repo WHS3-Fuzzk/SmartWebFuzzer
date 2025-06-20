@@ -134,10 +134,8 @@ def analyze_response(response: Dict[str, Any]) -> Dict[str, Any]:
     - 변조된 파라미터명을 findings['param']에 기록
     """
     # 모든 페이로드에 대해 체크하도록 수정
-    base_dir = os.path.dirname(os.path.abspath(__file__))  # 이 스크립트 파일 위치
-    payload_file = os.path.join(
-        base_dir, "..", "payloads", "xss.txt"
-    )  # 한단계 위 폴더에 payloads가 있으면 이렇게
+    base_dir = os.path.dirname(os.path.abspath(__file__))  # src/scanners 폴더 경로
+    payload_file = os.path.join(base_dir, "payloads", "xss.txt")  # payloads/xss.txt 경로
     with open(payload_file, "r", encoding="utf-8") as f:
         payloads = [line.strip() for line in f if line.strip()]
 
