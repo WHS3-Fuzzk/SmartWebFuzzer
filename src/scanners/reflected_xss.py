@@ -1,9 +1,14 @@
+"""
+reflected_xss.py
+
+Reflected XSS 취약점 스캐너 모듈입니다.
+BaseScanner를 상속받아 요청 변조 및 결과 분석 기능을 구현합니다.
+"""
+
 import os
 from typing import Any, Dict, Iterable, List
 from datetime import datetime
-from celery.result import AsyncResult
 from celery import chain
-from db_writer import insert_fuzzed_request, insert_fuzzed_response
 from scanners.base import BaseScanner
 from fuzzing_scheduler.fuzzing_scheduler import celery_app, send_fuzz_request
 from typedefs import RequestData
@@ -15,13 +20,12 @@ def realdictrow_to_dict(obj):
     """
     if isinstance(obj, list):
         return [realdictrow_to_dict(i) for i in obj]
-    elif hasattr(obj, "keys") and hasattr(obj, "__getitem__"):
+    if hasattr(obj, "keys") and hasattr(obj, "__getitem__"):
         # RealDictRow나 dict 형태일 때
         return {k: realdictrow_to_dict(obj[k]) for k in obj.keys()}
-    elif isinstance(obj, datetime):
+    if isinstance(obj, datetime):
         return obj.isoformat()
-    else:
-        return obj
+    return obj
 
 
 class ReflectedXSS(BaseScanner):
@@ -98,9 +102,10 @@ class ReflectedXSS(BaseScanner):
             fuzz_request_dict = realdictrow_to_dict(fuzz_request)
             print(fuzz_request_dict)
             task_chain = chain(
-                send_fuzz_request.s(fuzz_request_dict), analyze_response.s()
+                send_fuzz_request.s(fuzz_request_dict),
+                analyze_response.s(),
             )
-            async_result: AsyncResult = task_chain.apply_async(queue="fuzz_request")
+            task_chain.apply_async(queue="fuzz_request")
 
             url = fuzz_request_dict.get("meta", {}).get("path", "Unknown URL")
 
@@ -115,7 +120,8 @@ class ReflectedXSS(BaseScanner):
 
         for r in results:
             print(
-                f"URL: {r['url']}, Attack Type: {r['attack_type']}, Payload: {r['payload']}, Target Param: {r['target_param']}"
+                f"URL: {r['url']}, Attack Type: {r['attack_type']}, "
+                f"Payload: {r['payload']}, Target Param: {r['target_param']}"
             )
         return results
 
@@ -127,7 +133,6 @@ def analyze_response(response: Dict[str, Any]) -> Dict[str, Any]:
     - 페이로드가 응답 본문에 반영되면 취약점으로 판단
     - 변조된 파라미터명을 findings['param']에 기록
     """
-    vulnerability = {}
     # 모든 페이로드에 대해 체크하도록 수정
     base_dir = os.path.dirname(os.path.abspath(__file__))  # 이 스크립트 파일 위치
     payload_file = os.path.join(
@@ -139,9 +144,8 @@ def analyze_response(response: Dict[str, Any]) -> Dict[str, Any]:
     response_text = response.get("text", "")
     for payload in payloads:
         if payload in response_text:
-            vulnerability = {
+            return {
                 "payload": payload,
                 "evidence": "응답에 페이로드가 반영됨",
             }
-            break
-    return vulnerability
+    return {}
