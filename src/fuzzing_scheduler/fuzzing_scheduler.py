@@ -21,14 +21,15 @@ fuzzing_scheduler는 퍼징 요청의 분산/스케줄링과 워커 관리를 �
 import os
 import time
 import subprocess
+import chardet
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from celery import Celery
 import requests
 
 from typedefs import RequestData
-import chardet
 
+# 멀티프로세싱 환경에서 celery 오류 방지
 os.environ.setdefault("FORKED_BY_MULTIPROCESSING", "1")
 
 celery_app = Celery(
@@ -115,6 +116,7 @@ def start_celery_workers() -> List[subprocess.Popen]:
 
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
 def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, Any]:
+    """requests.request의 모든 인자를 받아 HTTP 요청을 전송하는 범용 래퍼 함수"""
     if request_data:
         kwargs.update(requestdata_to_requests_kwargs(request_data))
 
