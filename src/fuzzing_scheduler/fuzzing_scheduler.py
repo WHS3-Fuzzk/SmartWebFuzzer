@@ -23,11 +23,16 @@ import time
 import subprocess
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from celery import Celery
+
+import chardet
 import requests
+from celery import Celery
 
 from typedefs import RequestData
 
+
+# 멀티프로세싱 환경에서 celery 오류 방지
+os.environ.setdefault("FORKED_BY_MULTIPROCESSING", "1")
 
 celery_app = Celery(
     "fuzzer",
@@ -114,10 +119,15 @@ def start_celery_workers() -> List[subprocess.Popen]:
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
 def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, Any]:
     """requests.request의 모든 인자를 받아 HTTP 요청을 전송하는 범용 래퍼 함수"""
+
     # RequestData의 형태로 인자가 전달되면 requests.request에 맞게 변환
     if request_data:
         kwargs.update(requestdata_to_requests_kwargs(request_data))
     response = requests.request(*args, **kwargs, timeout=30)
+
+    # 인코딩 자동 감지
+    detected_encoding = chardet.detect(response.content)["encoding"]
+    body = response.content.decode(detected_encoding or "utf-8", errors="replace")
 
     return {
         "status_code": response.status_code,
@@ -126,7 +136,7 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
         "elapsed_time": response.elapsed.total_seconds(),
         "http_version": response.raw.version,
         "url": response.url,
-        "body": response.content.decode("utf-8"),
+        "body": body,
         "timestamp": datetime.now(),
         "cookies": dict(response.cookies),
         "request_info": {
@@ -134,7 +144,7 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
             "url": response.request.url,
             "headers": dict(response.request.headers),
             "body": (
-                response.request.body.decode("utf-8")
+                response.request.body.decode("utf-8", errors="replace")
                 if isinstance(response.request.body, bytes)
                 else str(response.request.body)
             ),
