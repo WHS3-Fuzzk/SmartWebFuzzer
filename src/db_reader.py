@@ -1,10 +1,11 @@
 """db_reader.py"""
 
 import contextlib
-from typing import Any, Dict
+from typing import Any, Dict, List
 import psycopg2.extras as _E
 import psycopg2.pool
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
+from typedefs import RequestData
 
 
 # 다음 3개의 메타 데이터들의 id를 기준으로 read를 진행한다.
@@ -31,7 +32,7 @@ class DBReader:
         finally:
             self.pool.putconn(conn)
 
-    def select_filtered_request(self, request_id: int) -> Dict[str, Any]:
+    def select_filtered_request(self, request_id: int) -> RequestData:
         """filtered_request_id
         -> filtered_request, filtered_headers, filtered_query_params, filtered_requests_body 읽기
         """
@@ -192,3 +193,19 @@ class DBReader:
             if row:
                 return row["id"]
             return -1
+
+    def fetch_ids(self, start_id: int, limit: int) -> List[int]:
+        """
+        start_id 이상부터 limit개까지의 id를 오름차순으로 반환
+        """
+        query = (
+            "SELECT id FROM filtered_request WHERE id >= %s ORDER BY id ASC LIMIT %s"
+        )
+
+        try:
+            with self._cur() as cur:
+                cur.execute(query, (start_id, limit))
+                return [row["id"] for row in cur.fetchall()]
+        except psycopg2.DatabaseError as e:
+            # DB 관련 예외만 감싸서 올림
+            raise RuntimeError(f"DB fetch_ids error: {e}") from e
