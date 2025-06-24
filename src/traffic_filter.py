@@ -75,7 +75,6 @@ def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
     method = flow.request.method  # 'GET', 'POST', 등
     identifier = (method, base_url, param_keys_only, important_param_pairs)
 
-
     if mode == "request":
         if identifier in seen_request_keys:
             return True
@@ -88,7 +87,7 @@ def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
         seen_response_keys.add(identifier)
         return False
 
-    return False 
+    return False
 
 
 def is_valid_request(flow: http.HTTPFlow) -> bool:

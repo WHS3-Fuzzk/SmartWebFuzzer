@@ -15,6 +15,7 @@ from fuzzing_scheduler.fuzzing_scheduler import celery_app, send_fuzz_request
 
 logger = logging.getLogger(__name__)
 
+
 def get_full_base_url(meta: Dict[str, Any]) -> str:
     """요청 메타에서 base url(scheme://domain) 생성"""
     scheme = meta.get("scheme", "http")
@@ -22,6 +23,7 @@ def get_full_base_url(meta: Dict[str, Any]) -> str:
     if not domain:
         return None
     return f"{scheme}://{domain}"
+
 
 def build_multipart_body(field, filename, shell, boundary):
     """멀티파트 업로드 페이로드 body 생성"""
@@ -32,6 +34,7 @@ def build_multipart_body(field, filename, shell, boundary):
         f"{shell}\r\n"
         f"--{boundary}--"
     )
+
 
 def build_base_request(base, opts):
     """페이로드 변형용 base request 생성"""
@@ -59,6 +62,7 @@ def build_base_request(base, opts):
     }
     return base_req
 
+
 def generate_payload_cases():
     """파일 업로드 확장자 및 우회 트릭 조합 생성 (php, jsp, asp 등)"""
     shell_templates = {
@@ -70,6 +74,7 @@ def generate_payload_cases():
     for ext, shell in shell_templates.items():
         for trick in tricks:
             yield ext, shell, trick
+
 
 class FileUploadScanner(BaseScanner):
     """File Upload 취약점 스캐너 클래스"""
@@ -97,8 +102,14 @@ class FileUploadScanner(BaseScanner):
         upload_keywords = ["upload", "file", "attach", "media", "document", "image"]
         path_has_upload = any(keyword in path for keyword in upload_keywords)
         upload_param_keys = {
-            "filename", "file", "ext", "path", "upload_dir",
-            "save_path", "upload", "attach",
+            "filename",
+            "file",
+            "ext",
+            "path",
+            "upload_dir",
+            "save_path",
+            "upload",
+            "attach",
         }
         query_keys = {p["key"].lower() for p in request.get("query_params", [])}
         query_has_upload = bool(upload_param_keys & query_keys)
@@ -226,6 +237,7 @@ class FileUploadScanner(BaseScanner):
         logger.info("총 %d개 페이로드 체인 전송 완료", total)
         return results
 
+
 def get_possible_paths(filename):
     """파일명 기준으로 흔한 업로드 경로 조합 반환"""
     return [
@@ -236,6 +248,7 @@ def get_possible_paths(filename):
         f"/hackable/uploads/{filename}",
     ]
 
+
 def extract_uploaded_urls(text, filename, existing_paths):
     """응답 본문에서 업로드 URL 후보 추출 및 기존 리스트에 추가"""
     upload_url_matches = re.findall(
@@ -245,6 +258,7 @@ def extract_uploaded_urls(text, filename, existing_paths):
         if u not in existing_paths:
             existing_paths.append(u)
     return existing_paths
+
 
 def find_real_uploaded_url(base_url, possible_paths, filename):
     """GET 요청으로 실제 업로드된 파일 URL 존재 여부 확인"""
@@ -261,6 +275,7 @@ def find_real_uploaded_url(base_url, possible_paths, filename):
         except requests.RequestException:
             continue
     return False, ""
+
 
 @celery_app.task(name="tasks.analyze_upload_response", queue="analyze_response")
 def analyze_upload_response_task(response: Dict[str, Any]) -> Dict[str, Any]:
@@ -302,14 +317,18 @@ def analyze_upload_response_task(response: Dict[str, Any]) -> Dict[str, Any]:
             "payload_filename": filename,
             "estimated_file_location": real_url if real_file_found else None,
         }
-        url = f"{base_url}{meta.get('path', '')}" if base_url and meta.get('path') else base_url
-        print("="*60)
+        url = (
+            f"{base_url}{meta.get('path', '')}"
+            if base_url and meta.get("path")
+            else base_url
+        )
+        print("=" * 60)
         print("[파일업로드 취약점 발견!]")
         print(f"요청 URL: {url}")
         print(f"업로드 파일명: {filename}")
         print(f"추정 업로드 경로: {real_url if real_file_found else '경로 미확인'}")
         print(f"증거: {result['evidence']}")
-        print("="*60)
+        print("=" * 60)
         logger.warning("[analyze_upload_response] 취약점 발견! %s", result)
         return result
 
