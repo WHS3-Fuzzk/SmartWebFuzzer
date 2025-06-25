@@ -1,23 +1,29 @@
 """
 File Upload 취약점 스캐너 모듈
+BaseScanner/RequestData 템플릿 구조 준수 (SmartWebFuzzer 개발 가이드 예시)
 """
 
 import copy
 import uuid
 import re
 import logging
+import time
 from typing import Any, Dict, Iterable, List
 import requests
 
+from celery.result import AsyncResult
 from celery import chain
 from scanners.base import BaseScanner
+from typedefs import RequestData
 from fuzzing_scheduler.fuzzing_scheduler import celery_app, send_fuzz_request
 
 logger = logging.getLogger(__name__)
 
 
 def get_full_base_url(meta: Dict[str, Any]) -> str:
-    """요청 메타에서 base url(scheme://domain) 생성"""
+    """
+    scheme, domain 정보를 조합해 base URL을 반환합니다.
+    """
     scheme = meta.get("scheme", "http")
     domain = meta.get("domain")
     if not domain:
@@ -26,7 +32,9 @@ def get_full_base_url(meta: Dict[str, Any]) -> str:
 
 
 def build_multipart_body(field, filename, shell, boundary):
-    """멀티파트 업로드 페이로드 body 생성"""
+    """
+    multipart/form-data 요청 본문을 생성합니다.
+    """
     return (
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="{field}"; filename="{filename}"\r\n'
@@ -37,7 +45,9 @@ def build_multipart_body(field, filename, shell, boundary):
 
 
 def build_base_request(base, opts):
-    """페이로드 변형용 base request 생성"""
+    """
+    base request를 복사해 multipart/form-data 요청을 조립합니다.
+    """
     base_req = copy.deepcopy(base)
     boundary = opts["boundary"]
     multipart_body = opts["multipart_body"]
@@ -64,39 +74,52 @@ def build_base_request(base, opts):
 
 
 def generate_payload_cases():
-    """파일 업로드 확장자 및 우회 트릭 조합 생성 (php, jsp, asp 등)"""
+    """
+    확장자 우회 및 다양한 페이로드를 생성합니다.
+    """
     shell_templates = {
         "php": "<?php echo 'vuln'; ?>",
         "jsp": "<% out.print('vuln!'); %>",
         "asp": '<% Response.Write "vuln" %>',
     }
-    tricks = ["{}", "{}.jpg", "{}.", "{}%00.jpg", "GIF89a{}"]
+    tricks = [
+        "{}",
+        "{}.jpg",
+        "{}.",
+        "{}%00.jpg",
+        "GIF89a{}",
+        "{};.php",
+        "{}.php;.jpg",
+        "{}..;",
+        "{}....",
+        "{} .php",
+        "{}.php ",
+        "한글{}.php",
+        "{}$.php",
+    ]
+
     for ext, shell in shell_templates.items():
         for trick in tricks:
             yield ext, shell, trick
 
 
 class FileUploadScanner(BaseScanner):
-    """File Upload 취약점 스캐너 클래스"""
+    """
+    파일 업로드 취약점 스캐너 예시 (RequestData 사용)
+    """
 
     @property
     def vulnerability_name(self) -> str:
-        """취약점 스캐너명 반환"""
         return "file_upload"
 
-    def is_target(self, request_id: int, request: Dict[str, Any]) -> bool:
-        """업로드 타겟 요청 여부 판정"""
+    def is_target(self, request_id: int, request: RequestData) -> bool:
+        """
+        파일업로드 관련 요청 여부 판별
+        """
         method = request["meta"]["method"].upper()
         headers = {h["key"].lower(): h["value"] for h in (request.get("headers") or [])}
         content_type = headers.get("content-type", "")
         path = request["meta"].get("path", "").lower()
-
-        logger.info(
-            "[is_target] 요청 분석 - 메서드: %s, Content-Type: %s, 경로: %s",
-            method,
-            content_type,
-            path,
-        )
 
         is_multipart = method == "POST" and "multipart/form-data" in content_type
         upload_keywords = ["upload", "file", "attach", "media", "document", "image"]
@@ -116,16 +139,63 @@ class FileUploadScanner(BaseScanner):
         is_target = is_multipart or (
             method == "POST" and (path_has_upload or query_has_upload)
         )
-
-        logger.info("[is_target] 판별 결과:")
-        logger.info("  - multipart/form-data: %s", is_multipart)
-        logger.info("  - 경로 업로드 키워드: %s", path_has_upload)
-        logger.info("  - 쿼리 업로드 키워드: %s", query_has_upload)
-        logger.info("  - 최종 판정: %s", is_target)
         return is_target
 
-    def _get_upload_field_names(self, request: Dict[str, Any]) -> List[str]:
-        """멀티파트 body에서 파일 필드명 추출 (없으면 기본값 'file')"""
+    def generate_fuzzing_requests(self, request: RequestData) -> Iterable[RequestData]:
+        """
+        다양한 페이로드로 변조된 업로드 요청을 생성
+        """
+        upload_fields = self._get_upload_field_names(request)
+        path_keys = [
+            "path",
+            "upload_dir",
+            "save_path",
+            "filepath",
+            "target_path",
+            "upload",
+        ]
+        payload_count = 0
+
+        for ext, shell, trick in generate_payload_cases():
+            for field in upload_fields:
+                payload_count += 1
+                context = {
+                    "ext": ext,
+                    "shell": shell,
+                    "trick": trick,
+                    "field": field,
+                    "path_keys": path_keys,
+                    "payload_count": payload_count,
+                }
+                filename, base_req, pk_list = self._gen_single_payload(request, context)
+                print(f"[+] Generated fuzzing request with payload: {filename}")
+                yield base_req
+
+                for path_key in pk_list:
+                    payload_count += 1
+                    mod_req = copy.deepcopy(base_req)
+                    mod_req.setdefault("query_params", []).append(
+                        {
+                            "key": path_key,
+                            "value": "../../html/uploads",
+                            "source": "fuzzer",
+                        }
+                    )
+                    mod_req["extra"] = {
+                        "payload": f"{filename} + {path_key}=../../html/uploads",
+                        "payload_id": payload_count,
+                        "shell_type": ext,
+                    }
+                    print(
+                        "[+] Generated fuzzing request with payload: "
+                        f"{mod_req['extra']['payload']}"
+                    )
+                    yield mod_req
+
+    def _get_upload_field_names(self, request: RequestData) -> List[str]:
+        """
+        HTTP 요청 본문에서 업로드 필드명을 추출합니다.
+        """
         body = request.get("body", {})
         raw_body = body.get("body", "")
         if not raw_body:
@@ -135,12 +205,12 @@ class FileUploadScanner(BaseScanner):
             re.I,
         )
         matches = pattern.findall(raw_body)
-        field_names = list(set(matches)) if matches else ["file"]
-        logger.info("[_get_upload_field_names] 추출된 필드명: %s", field_names)
-        return field_names
+        return list(set(matches)) if matches else ["file"]
 
     def _gen_single_payload(self, request, context):
-        """단일 우회/페이로드 변형 생성"""
+        """
+        단일 페이로드 케이스를 생성합니다.
+        """
         basename = uuid.uuid4().hex[:6]
         ext = context["ext"]
         shell = context["shell"]
@@ -162,84 +232,57 @@ class FileUploadScanner(BaseScanner):
         base_req = build_base_request(request, opts)
         return filename, base_req, path_keys
 
-    def generate_fuzzing_requests(
-        self, request: Dict[str, Any]
-    ) -> Iterable[Dict[str, Any]]:
-        """업로드 퍼징 요청 생성 (filename, 경로 등 우회 조합)"""
-        upload_fields = self._get_upload_field_names(request)
-        path_keys = ["path", "upload_dir", "save_path", "filepath", "target_path"]
-        payload_count = 0
-
-        for ext, shell, trick in generate_payload_cases():
-            for field in upload_fields:
-                payload_count += 1
-                context = {
-                    "ext": ext,
-                    "shell": shell,
-                    "trick": trick,
-                    "field": field,
-                    "path_keys": path_keys,
-                    "payload_count": payload_count,
-                }
-                filename, base_req, pk_list = self._gen_single_payload(request, context)
-                logger.info("[+] Generated fuzzing request with payload: %s", filename)
-                yield base_req
-
-                for path_key in pk_list:
-                    payload_count += 1
-                    mod_req = copy.deepcopy(base_req)
-                    mod_req.setdefault("query_params", []).append(
-                        {
-                            "key": path_key,
-                            "value": "../../html/uploads",
-                            "source": "fuzzer",
-                        }
-                    )
-                    mod_req["extra"] = {
-                        "payload": f"{filename} + {path_key}=../../html/uploads",
-                        "payload_id": payload_count,
-                        "shell_type": ext,
-                    }
-                    logger.info(
-                        "[+] Generated fuzzing request with payload: %s",
-                        mod_req["extra"]["payload"],
-                    )
-                    yield mod_req
-
-    def run(self, request_id: int, request: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """파일 업로드 취약점 스캔 전체 실행"""
-        logger.info("[%s] 요청 ID: %d", self.vulnerability_name, request_id)
+    def run(self, request_id: int, request: RequestData) -> List[Dict[str, Any]]:
+        """
+        취약점 스캐너 메인 엔트리포인트 (Celery 비동기, DB 연동, print 출력 등 예시)
+        """
+        print(f"[{self.vulnerability_name}] 요청 ID: {request_id}\n")
         if not self.is_target(request_id, request):
-            logger.info(">> 스캔 대상 아님")
+            print(">> 업로드 대상이 아님")
             return []
 
-        results = []
-        total = 0
+        async_results: List[AsyncResult] = []
+        # --- 비동기 퍼징 요청 전송 ---
         for fuzz_request in self.generate_fuzzing_requests(request):
-            fuzz_request_dict = fuzz_request.copy()
-            logger.info(
-                "[+] Fuzzing request: %s", fuzz_request_dict["extra"]["payload"]
-            )
-            task_chain = chain(
-                send_fuzz_request.s(fuzz_request_dict),
+            # DB 저장 가능: insert_fuzzed_request(fuzz_request) 등
+            async_result = chain(
+                send_fuzz_request.s(fuzz_request),
                 analyze_upload_response_task.s(),
-            )
-            task_chain.apply_async(queue="fuzz_request")
-            total += 1
+            ).apply_async(queue="fuzz_request")
+            if async_result is not None:
+                async_results.append(async_result)
 
-            results.append(
-                {
-                    "payload": fuzz_request_dict["extra"]["payload"],
-                    "shell_type": fuzz_request_dict["extra"]["shell_type"],
-                }
-            )
-
-        logger.info("총 %d개 페이로드 체인 전송 완료", total)
-        return results
+        # --- 비동기 응답 수집 및 결과 print ---
+        pending = list(async_results)
+        findings = []
+        while pending:
+            for res in pending[:]:
+                if res.ready():
+                    result = res.get()
+                    if result:
+                        print("=" * 60)
+                        print("[파일업로드 취약점 발견!]")
+                        print(f"요청 URL: {request['meta']['path']}")
+                        print(f"업로드 파일명: {result.get('payload_filename', '-')}")
+                        estimate = result.get("estimated_file_location")
+                        print(
+                            f"추정 업로드 경로: "
+                            f"{estimate if estimate else '경로 미확인'}"
+                        )
+                        print(f"증거: {result.get('evidence')}")
+                        print("=" * 60)
+                        findings.append(result)
+                    else:
+                        print("[완료] 취약점 없음")
+                    pending.remove(res)
+            time.sleep(0.5)
+        return findings
 
 
 def get_possible_paths(filename):
-    """파일명 기준으로 흔한 업로드 경로 조합 반환"""
+    """
+    일반적으로 사용되는 업로드 경로를 리턴합니다.
+    """
     return [
         f"/uploads/{filename}",
         f"/upload/{filename}",
@@ -250,7 +293,9 @@ def get_possible_paths(filename):
 
 
 def extract_uploaded_urls(text, filename, existing_paths):
-    """응답 본문에서 업로드 URL 후보 추출 및 기존 리스트에 추가"""
+    """
+    응답 내에 업로드 파일 URL이 포함되어 있으면 경로 목록에 추가합니다.
+    """
     upload_url_matches = re.findall(
         r"(\/[A-Za-z0-9_\-\/\.]*" + re.escape(filename) + r")", text
     )
@@ -261,7 +306,9 @@ def extract_uploaded_urls(text, filename, existing_paths):
 
 
 def find_real_uploaded_url(base_url, possible_paths, filename):
-    """GET 요청으로 실제 업로드된 파일 URL 존재 여부 확인"""
+    """
+    추정 업로드 경로를 직접 접근하여 파일 업로드 성공 여부를 확인합니다.
+    """
     for path in possible_paths:
         url = f"{base_url}{path}"
         try:
@@ -279,7 +326,9 @@ def find_real_uploaded_url(base_url, possible_paths, filename):
 
 @celery_app.task(name="tasks.analyze_upload_response", queue="analyze_response")
 def analyze_upload_response_task(response: Dict[str, Any]) -> Dict[str, Any]:
-    """파일 업로드 성공 여부 응답 분석(실제 업로드 성공 여부까지 검증)"""
+    """
+    파일 업로드 성공 판정 및 분석 결과 반환 (추정 경로 포함)
+    """
     text = response.get("text", "")
     status = response.get("status_code", 0)
     request_data = response.get("request_data", {})
@@ -311,26 +360,10 @@ def analyze_upload_response_task(response: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     if status == 200 and (found or real_file_found):
-        result = {
+        return {
             "evidence": "Upload likely succeeded",
             "status_code": status,
             "payload_filename": filename,
             "estimated_file_location": real_url if real_file_found else None,
         }
-        url = (
-            f"{base_url}{meta.get('path', '')}"
-            if base_url and meta.get("path")
-            else base_url
-        )
-        print("=" * 60)
-        print("[파일업로드 취약점 발견!]")
-        print(f"요청 URL: {url}")
-        print(f"업로드 파일명: {filename}")
-        print(f"추정 업로드 경로: {real_url if real_file_found else '경로 미확인'}")
-        print(f"증거: {result['evidence']}")
-        print("=" * 60)
-        logger.warning("[analyze_upload_response] 취약점 발견! %s", result)
-        return result
-
-    logger.info("[analyze_upload_response] 취약점 미발견, status: %d", status)
     return {}
