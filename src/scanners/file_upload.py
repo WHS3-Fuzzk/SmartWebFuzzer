@@ -82,22 +82,7 @@ def generate_payload_cases():
         "jsp": "<% out.print('vuln!'); %>",
         "asp": '<% Response.Write "vuln" %>',
     }
-    tricks = [
-        "{}",
-        "{}.jpg",
-        "{}.",
-        "{}%00.jpg",
-        "GIF89a{}",
-        "{};.php",
-        "{}.php;.jpg",
-        "{}..;",
-        "{}....",
-        "{} .php",
-        "{}.php ",
-        "한글{}.php",
-        "{}$.php",
-    ]
-
+    tricks = ["{}", "{}.jpg", "{}.", "{}%00.jpg", "GIF89a{}"]
     for ext, shell in shell_templates.items():
         for trick in tricks:
             yield ext, shell, trick
@@ -146,14 +131,7 @@ class FileUploadScanner(BaseScanner):
         다양한 페이로드로 변조된 업로드 요청을 생성
         """
         upload_fields = self._get_upload_field_names(request)
-        path_keys = [
-            "path",
-            "upload_dir",
-            "save_path",
-            "filepath",
-            "target_path",
-            "upload",
-        ]
+        path_keys = ["path", "upload_dir", "save_path", "filepath", "target_path"]
         payload_count = 0
 
         for ext, shell, trick in generate_payload_cases():
