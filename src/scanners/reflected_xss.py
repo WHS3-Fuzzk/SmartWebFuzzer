@@ -105,7 +105,7 @@ class ReflectedXSS(BaseScanner):
                 send_fuzz_request.s(fuzz_request_dict),
                 analyze_response.s(),
             )
-            task_chain.apply_async(queue="fuzz_request")
+            task_chain.apply_async()
 
             url = fuzz_request_dict.get("meta", {}).get("path", "Unknown URL")
 
