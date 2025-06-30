@@ -1,6 +1,7 @@
 """
 File Upload 취약점 스캐너 모듈
 BaseScanner/RequestData 템플릿 구조 준수 (SmartWebFuzzer 개발 가이드 예시)
+DB 저장 기능 추가
 """
 
 import copy
@@ -16,6 +17,10 @@ from celery import chain
 from scanners.base import BaseScanner
 from typedefs import RequestData
 from fuzzing_scheduler.fuzzing_scheduler import celery_app, send_fuzz_request
+from db_writer import (
+    insert_fuzzed_request,
+    insert_fuzzed_response,
+)  # DB 저장 함수 import
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +91,59 @@ def generate_payload_cases():
     for ext, shell in shell_templates.items():
         for trick in tricks:
             yield ext, shell, trick
+
+
+def to_fuzzed_request_dict(
+    fuzzing_request: dict,
+    original_request_id: int,
+    scanner: str,
+    payload: str,
+) -> dict:
+    """RequestData 구조를 DB 저장용 딕셔너리로 변환"""
+    meta = fuzzing_request.get("meta", {})
+    headers_list = fuzzing_request.get("headers", [])
+    query_params = fuzzing_request.get("query_params", [])
+    body = fuzzing_request.get("body", {})
+
+    # headers를 딕셔너리로 변환
+    headers_dict = {h["key"]: h["value"] for h in headers_list}
+
+    # query_params를 리스트로 변환 (기존 구조 유지)
+    query_list = [{"key": q["key"], "value": q["value"]} for q in query_params]
+
+    return {
+        "original_request_id": original_request_id,
+        "scanner": scanner,
+        "payload": payload,
+        "is_http": meta.get("is_http", True),
+        "http_version": meta.get("http_version", "1.1"),
+        "domain": meta.get("domain"),
+        "path": meta.get("path"),
+        "method": meta.get("method"),
+        "timestamp": meta.get("timestamp"),
+        "headers": headers_dict,
+        "query": query_list,
+        "body": body.get("body", ""),
+    }
+
+
+def to_fuzzed_response_dict(fuzzed_response: dict) -> dict:
+    """응답 데이터를 DB 저장용 딕셔너리로 변환"""
+    headers_dict = {}
+    if "headers" in fuzzed_response:
+        # headers가 리스트 형태인 경우 딕셔너리로 변환
+        if isinstance(fuzzed_response["headers"], list):
+            headers_dict = {h["key"]: h["value"] for h in fuzzed_response["headers"]}
+        else:
+            headers_dict = fuzzed_response["headers"]
+
+    return {
+        "http_version": fuzzed_response.get("http_version", "1.1"),
+        "status_code": fuzzed_response.get("status_code"),
+        "timestamp": fuzzed_response.get("timestamp"),
+        "headers": headers_dict,
+        "body": fuzzed_response.get("text", ""),  # 'text' 필드를 'body'로 매핑
+    }
 
 
 class FileUploadScanner(BaseScanner):
@@ -230,31 +288,69 @@ class FileUploadScanner(BaseScanner):
             if async_result is not None:
                 async_results.append(async_result)
 
-        # --- 비동기 응답 수집 및 결과 print ---
+        # --- 비동기 응답 수집 및 결과 print, DB 저장 ---
         pending = list(async_results)
         findings = []
         while pending:
             for res in pending[:]:
                 if res.ready():
                     result = res.get()
+
+                    # DB 저장 로직 추가
+                    if res.parent is not None:
+                        self._save_to_database(res, request_id)
+
+                    # 취약점 발견 시 출력
                     if result:
-                        print("=" * 60)
-                        print("[파일업로드 취약점 발견!]")
-                        print(f"요청 URL: {request['meta']['path']}")
-                        print(f"업로드 파일명: {result.get('payload_filename', '-')}")
-                        estimate = result.get("estimated_file_location")
-                        print(
-                            f"추정 업로드 경로: "
-                            f"{estimate if estimate else '경로 미확인'}"
-                        )
-                        print(f"증거: {result.get('evidence')}")
-                        print("=" * 60)
+                        self._print_vulnerability_found(result, request)
                         findings.append(result)
                     else:
                         print("[완료] 취약점 없음")
                     pending.remove(res)
             time.sleep(0.5)
         return findings
+
+    def _save_to_database(self, async_result: AsyncResult, request_id: int) -> None:
+        """DB 저장 로직을 별도 메서드로 분리"""
+        try:
+            # 퍼징 요청 데이터 가져오기
+            parent_result = async_result.parent.get()
+            fuzzed_request_data = parent_result.get("request_data")
+            fuzzed_response_data = parent_result
+
+            # 페이로드 정보 추출
+            payload_info = fuzzed_request_data.get("extra", {})
+            payload = payload_info.get("payload", "")
+
+            # DB 저장용 데이터 변환
+            fuzzed_request = to_fuzzed_request_dict(
+                fuzzed_request_data,
+                original_request_id=request_id,
+                scanner=self.vulnerability_name,
+                payload=payload,
+            )
+
+            fuzzed_response = to_fuzzed_response_dict(fuzzed_response_data)
+
+            # DB에 저장
+            fuzzed_request_id = insert_fuzzed_request(fuzzed_request)
+            insert_fuzzed_response(fuzzed_response, fuzzed_request_id)
+            print(f"[DB] 퍼징 요청/응답 저장 완료 (ID: {fuzzed_request_id})")
+        except (AttributeError, KeyError, TypeError) as e:
+            print(f"[DB ERROR] 저장 실패: {e}")
+
+    def _print_vulnerability_found(
+        self, result: Dict[str, Any], request: RequestData
+    ) -> None:
+        """취약점 발견 시 출력 로직을 별도 메서드로 분리"""
+        print("=" * 60)
+        print("[파일업로드 취약점 발견!]")
+        print(f"요청 URL: {request['meta']['path']}")
+        print(f"업로드 파일명: {result.get('payload_filename', '-')}")
+        estimate = result.get("estimated_file_location")
+        print(f"추정 업로드 경로: " f"{estimate if estimate else '경로 미확인'}")
+        print(f"증거: {result.get('evidence')}")
+        print("=" * 60)
 
 
 def get_possible_paths(filename):
