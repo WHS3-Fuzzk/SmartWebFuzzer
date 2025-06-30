@@ -119,6 +119,8 @@ def start_celery_workers() -> List[subprocess.Popen]:
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
 def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, Any]:
     """requests.request의 모든 인자를 받아 HTTP 요청을 전송하는 범용 래퍼 함수"""
+
+    # RequestData의 형태로 인자가 전달되면 requests.request에 맞게 변환
     if request_data:
         kwargs.update(requestdata_to_requests_kwargs(request_data))
 
