@@ -37,9 +37,7 @@ class BaseScanner(ABC):
         """취약점 분류기 역할: 이 스캐너가 해당 요청을 퍼징할 가치가 있는지 판단"""
 
     @abstractmethod
-    def generate_fuzzing_requests(
-        self, request: Dict[str, Any]
-    ) -> Iterable[Dict[str, Any]]:
+    def generate_fuzzing_requests(self, request: RequestData) -> Iterable[RequestData]:
         """퍼징용 변형(request 사본)을 순차적으로 yield"""
 
     @abstractmethod
