@@ -1,8 +1,11 @@
-from flask import Flask, jsonify, render_template
+"""Flask 기반 스마트 퍼징 대시보드의 웹 서버 모듈"""
+
+import os  # 표준 라이브러리
+from flask import Flask, jsonify, render_template  # 서드파티 라이브러리
 import psycopg2
-import os
 from dotenv import load_dotenv
 
+# Flask 앱 초기화 및 환경 변수 로드
 app = Flask(__name__)
 load_dotenv()
 
@@ -16,30 +19,27 @@ DB_CONFIG = {
 }
 
 
-# DB 쿼리 실행 함수
 def run_query(query, params=None):
+    """DB 쿼리를 실행하고 결과를 반환"""
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-        cur.execute(query, params)
-        result = cur.fetchall()
-        cur.close()
-        conn.close()
-        return result
-    except Exception as e:
-        print("DB 오류:", e)
+        with psycopg2.connect(**DB_CONFIG) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params if params else None)
+                return cur.fetchall()
+    except psycopg2.Error as db_err:
+        print("DB 오류:", db_err)
         return []
 
 
-# 메인 페이지 렌더링
 @app.route("/")
 def index():
+    """대시보드 메인 페이지를 렌더링"""
     return render_template("dashboard.html")
 
 
-# 원본 요청 목록 API
 @app.route("/api/requests")
 def get_requests():
+    """최근 원본 요청 목록을 반환하는 API"""
     query = """
         SELECT r.id, r.method, r.domain, r.path
         FROM filtered_request r
@@ -47,14 +47,15 @@ def get_requests():
         LIMIT 50;
     """
     rows = run_query(query)
-    return jsonify(
-        [{"id": row[0], "method": row[1], "url": f"{row[2]}{row[3]}"} for row in rows]
-    )
+    return jsonify([
+        {"id": row[0], "method": row[1], "url": f"{row[2]}{row[3]}"}
+        for row in rows
+    ])
 
 
-# 요청 상세 정보 API
 @app.route("/api/request/<int:request_id>")
 def get_request_detail(request_id):
+    """지정된 요청 ID에 대한 본문, 응답, 퍼징 정보를 반환"""
     query = """
         SELECT r.id, rb.body AS request_body, rb2.body AS response_body
         FROM filtered_request r
@@ -69,11 +70,9 @@ def get_request_detail(request_id):
     if not rows:
         return jsonify({"error": "요청 ID에 대한 데이터 없음"}), 404
 
-    row = rows[0]
-    request_body = row[1] or "(없음)"
-    response_body = row[2] or "(없음)"
+    request_body = rows[0][1] or "(없음)"
+    response_body = rows[0][2] or "(없음)"
 
-    # 퍼징 요청 목록
     fuzz_query = """
         SELECT fr.scanner, fr.method, fr.payload,
                frb.body AS fuzzed_body,
@@ -97,16 +96,13 @@ def get_request_detail(request_id):
         for row in fuzz_rows
     ]
 
-    return jsonify(
-        {
-            "id": request_id,
-            "request_body": request_body,
-            "response_body": response_body,
-            "fuzzing": fuzz_data,
-        }
-    )
+    return jsonify({
+        "id": request_id,
+        "request_body": request_body,
+        "response_body": response_body,
+        "fuzzing": fuzz_data,
+    })
 
 
-# 앱 실행
 if __name__ == "__main__":
     app.run(debug=True)
