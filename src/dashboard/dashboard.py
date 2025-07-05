@@ -9,6 +9,7 @@ import pandas as pd
 import psycopg2
 import gradio as gr
 from dotenv import load_dotenv
+from psycopg2 import Error as Psycopg2Error
 
 # .env 로드
 load_dotenv()
@@ -33,7 +34,7 @@ def run_query(query_and_params):
             df = pd.read_sql_query(query_and_params, conn)
         conn.close()
         return df
-    except (psycopg2.Error, pd.errors.ParserError):
+    except (Psycopg2Error, pd.errors.ParserError):
         traceback.print_exc()
         return pd.DataFrame()
 
@@ -184,7 +185,7 @@ with gr.Blocks() as grammar:
             gr.Markdown("### 📊 분석 결과")
             analysis_result_box = gr.Textbox(label="분석 결과", lines=12)
 
-    original_dropdown.change(  # type: ignore[attr-defined]
+    original_dropdown.change(  # pylint: disable=no-member
         fn=load_request_info,
         inputs=original_dropdown,
         outputs=[
@@ -197,7 +198,7 @@ with gr.Blocks() as grammar:
         ],
     )
 
-    fuzz_dropdown_box.change(  # type: ignore[attr-defined]
+    fuzz_dropdown_box.change(  # pylint: disable=no-member
         fn=load_fuzz_detail,
         inputs=[fuzz_dropdown_box, original_dropdown],
         outputs=[fuzz_body_box, fuzz_response_box],
