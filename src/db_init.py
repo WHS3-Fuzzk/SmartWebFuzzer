@@ -3,7 +3,7 @@
 import os
 import subprocess
 from datetime import datetime
-
+import redis
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
@@ -281,3 +281,26 @@ class DBInit:
             print(f"💾 DB 백업 완료: {backup_path}")
         except subprocess.CalledProcessError as e:
             print("❌ DB 백업 실패:", e)
+
+
+def initialize_redis_db() -> bool:
+    """Redis DB를 초기화합니다. 모든 데이터를 삭제하고 깨끗한 상태로 만듭니다."""
+    try:
+        r = redis.Redis(host="localhost", port=6379, db=0, socket_connect_timeout=5)
+        r.ping()
+
+        # 모든 키 삭제
+        keys_deleted = r.flushdb()
+        print(f"[INFO] Redis DB 초기화 성공 여부: {keys_deleted}")
+
+        # Celery 백엔드용 DB도 초기화
+        r_backend = redis.Redis(
+            host="localhost", port=6379, db=1, socket_connect_timeout=5
+        )
+        keys_deleted_backend = r_backend.flushdb()
+        print(f"[INFO] Redis 백엔드 DB 초기화 성공 여부: {keys_deleted_backend}")
+
+        return True
+    except (redis.ConnectionError, redis.TimeoutError) as e:
+        print(f"[ERROR] Redis 연결 실패: {e}")
+        return False
