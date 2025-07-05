@@ -13,7 +13,11 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List
 from celery.result import AsyncResult
 from celery import chain
-from db_writer import insert_fuzzed_request, insert_fuzzed_response
+from db_writer import (
+    insert_fuzzed_request,
+    insert_fuzzed_response,
+    insert_vulnerability_scan_result,
+)
 from scanners.base import BaseScanner
 from fuzzing_scheduler.fuzzing_scheduler import celery_app  # celery_app import 예시
 from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
@@ -117,23 +121,51 @@ class ExampleScanner(BaseScanner):
                             fuzzed_request,
                             original_request_id=request_id,
                             scanner=self.vulnerability_name,
-                            payload=res.parent.get()
-                            .get("request_data")
-                            .get("extra", {})
-                            .get("payload", ""),
+                            payload=fuzzed_request.get("extra", {}).get("payload", ""),
                         )
 
                         fuzzed_response = res.parent.get()  # 퍼징 응답
                         fuzzed_response = to_fuzzed_response_dict(fuzzed_response)
 
                         # 퍼징 요청과 응답을 DB에 저장
-                        try:
-                            fuzzed_request_id = insert_fuzzed_request(
-                                fuzzed_request_dict
-                            )
-                            insert_fuzzed_response(fuzzed_response, fuzzed_request_id)
-                        except TypeError as e:
-                            print(f"DB 저장 중 오류 발생: {e}")
+
+                        fuzzed_request_id = insert_fuzzed_request(fuzzed_request_dict)
+                        insert_fuzzed_response(fuzzed_response, fuzzed_request_id)
+
+                        # 취약점이 발견된 경우에만 vulnerability_scan_results에 저장
+                        if result and result != {}:
+                            print(f"취약점 발견: {result}")
+                            scan_result = {
+                                "vulnerability_name": self.vulnerability_name,
+                                "original_request_id": request_id,
+                                "fuzzed_request_id": fuzzed_request_id,
+                                "domain": fuzzed_request.get("meta", {}).get(
+                                    "domain", ""
+                                ),
+                                "endpoint": fuzzed_request.get("meta", {}).get(
+                                    "path", ""
+                                ),
+                                "method": fuzzed_request.get("meta", {}).get(
+                                    "method", ""
+                                ),
+                                "payload": fuzzed_request.get("extra", {}).get(
+                                    "payload", ""
+                                ),
+                                "parameter": fuzzed_request.get("extra", {}).get(
+                                    "fuzzed_param", ""
+                                ),
+                                "extra": {
+                                    "confidence": 0.9,
+                                    "details": result.get("evidence", "취약점 발견"),
+                                    "timestamp": datetime.now().isoformat(),
+                                },
+                            }
+                            # 취약점 스캔 결과를 DB에 저장
+                            result_id = insert_vulnerability_scan_result(scan_result)
+                            print(f"취약점 스캔 결과 저장 완료: {result_id}")
+                        else:
+                            print("취약점이 발견되지 않았습니다.")
+
                         print(f"퍼징 요청 저장 완료: {fuzzed_request_id}")
                     else:
                         print(f"완료된 작업: {res.id}, 취약점 없음")

@@ -3,10 +3,11 @@
 동작 순서:
 1. 인프라 실행 (docker-compose up)
 2. DB 초기화
-3. Celery 워커 실행
-4. 프록시 서버 실행 (mitmproxy)
-5. 셀레니움 브라우저 실행
-6. 대시보드 모듈 실행
+3. Redis DB 초기화
+4. Celery 워커 실행
+5. 프록시 서버 실행 (mitmproxy)
+6. 셀레니움 브라우저 실행
+7. 대시보드 모듈 실행
 """
 
 import os
@@ -15,7 +16,7 @@ import urllib.parse
 import threading
 import subprocess
 from selenium.common.exceptions import WebDriverException
-from db_init import DBInit
+from db_init import DBInit, initialize_redis_db
 import proxy
 from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
@@ -41,6 +42,11 @@ def main():
     db = DBInit()
     db.create_database_if_not_exists()
     db.create_tables()
+
+    # Redis DB 초기화
+    if not initialize_redis_db():
+        print("[ERROR] Redis 초기화에 실패하여 Celery 워커를 시작할 수 없습니다.")
+        return
 
     # Celery 워커 시작
     celery_workers = start_celery_workers()
