@@ -231,6 +231,19 @@ class DBInit:
             content_encoding VARCHAR,
             body TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS vulnerability_scan_results (
+            id SERIAL PRIMARY KEY,
+            vulnerability_name VARCHAR,
+            original_request_id INTEGER REFERENCES filtered_request(id),
+            fuzzed_request_id INTEGER REFERENCES fuzzed_request(id),
+            domain VARCHAR,
+            endpoint VARCHAR,
+            method VARCHAR,
+            parameter VARCHAR,
+            payload VARCHAR,
+            extra JSONB
+        );
         """
         cur.execute(table_sql)
         conn.commit()

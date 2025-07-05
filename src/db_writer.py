@@ -3,6 +3,7 @@ DB 삽입 관련 함수 모듈
 환경변수에서 DB 연결 정보를 불러와 PostgreSQL에 데이터를 저장함
 """
 
+import json
 import psycopg2
 from psycopg2.extras import execute_values
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
@@ -376,6 +377,69 @@ def insert_recon(recon: dict) -> int:
 
         conn.commit()
         return recon_id
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+        conn.close()
+
+
+def insert_vulnerability_scan_result(scan_result: dict) -> int:
+    """
+    취약점 스캔 결과를 vulnerability_scan_results 테이블에 저장하고 생성된 ID 반환
+
+    Args:
+        scan_result (dict): 스캔 결과 데이터
+            - vulnerability_name (str): 스캔 모듈 이름
+            - original_request_id (int): 원본 요청 ID
+            - fuzzed_request_id (int): 퍼징된 요청 ID
+            - domain (str): 도메인
+            - endpoint (str): 엔드포인트
+            - method (str): HTTP 메서드
+            - payload (str): 페이로드
+            - parameter (str): 파라미터
+            - extra (dict): 추가 스캔 결과 (JSONB로 저장됨)
+
+    Returns:
+        int: 생성된 스캔 결과 ID
+    """
+    conn = psycopg2.connect(
+        dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST, port=PORT
+    )
+    cur = conn.cursor()
+    try:
+        # extra 필드를 JSON으로 변환
+        extra_data = scan_result.get("extra")
+        extra_json = json.dumps(extra_data) if extra_data else None
+
+        cur.execute(
+            """
+            INSERT INTO vulnerability_scan_results 
+            (vulnerability_name, original_request_id, fuzzed_request_id, 
+             domain, endpoint, method, payload, parameter, extra)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                scan_result.get("vulnerability_name"),
+                scan_result.get("original_request_id"),
+                scan_result.get("fuzzed_request_id"),
+                scan_result.get("domain"),
+                scan_result.get("endpoint"),
+                scan_result.get("method"),
+                scan_result.get("payload"),
+                scan_result.get("parameter"),
+                extra_json,
+            ),
+        )
+        result = cur.fetchone()
+        if result is None:
+            raise ValueError("No ID returned after inserting vulnerability_scan_result")
+        scan_result_id = result[0]
+
+        conn.commit()
+        return scan_result_id
     except Exception as e:
         conn.rollback()
         raise e
