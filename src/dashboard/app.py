@@ -47,10 +47,9 @@ def get_requests():
         LIMIT 50;
     """
     rows = run_query(query)
-    return jsonify([
-        {"id": row[0], "method": row[1], "url": f"{row[2]}{row[3]}"}
-        for row in rows
-    ])
+    return jsonify(
+        [{"id": row[0], "method": row[1], "url": f"{row[2]}{row[3]}"} for row in rows]
+    )
 
 
 @app.route("/api/request/<int:request_id>")
@@ -96,12 +95,14 @@ def get_request_detail(request_id):
         for row in fuzz_rows
     ]
 
-    return jsonify({
-        "id": request_id,
-        "request_body": request_body,
-        "response_body": response_body,
-        "fuzzing": fuzz_data,
-    })
+    return jsonify(
+        {
+            "id": request_id,
+            "request_body": request_body,
+            "response_body": response_body,
+            "fuzzing": fuzz_data,
+        }
+    )
 
 
 if __name__ == "__main__":
