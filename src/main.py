@@ -19,6 +19,7 @@ from db_init import DBInit
 import proxy
 from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
+from dashboard.app import app
 
 
 def main():
@@ -44,7 +45,15 @@ def main():
     # Celery 워커 시작
     celery_workers = start_celery_workers()
 
-    # TODO: 대시보드 모듈 실행
+    # 대시보드 모듈 실행 (별도 스레드)
+    print("[INFO] 대시보드 서버 시작 중... (http://localhost:5000)")
+    dashboard_thread = threading.Thread(
+        target=lambda: app.run(
+            host="0.0.0.0", port=5000, debug=False, use_reloader=False
+        ),
+        daemon=True,
+    )
+    dashboard_thread.start()
 
     print("[INFO] 스캐너 트리거 시작 중...")
     threading.Thread(target=ScannerTrigger().run, daemon=True).start()
