@@ -16,10 +16,11 @@ import urllib.parse
 import threading
 import subprocess
 from selenium.common.exceptions import WebDriverException
-from db_init import DBInit, initialize_redis_db
+from db_init import initialize_databases
 import proxy
 from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
+from dashboard.app import app
 
 
 def main():
@@ -37,20 +38,21 @@ def main():
 
     # TODO: 인프라 docker-compose 실행
 
-    # DB 초기화
-    db = DBInit()
-    db.create_database_if_not_exists()
-    db.create_tables()
-
-    # Redis DB 초기화
-    if not initialize_redis_db():
-        print("[ERROR] Redis 초기화에 실패하여 Celery 워커를 시작할 수 없습니다.")
-        return
+    # 데이터베이스 초기화
+    db = initialize_databases()
 
     # Celery 워커 시작
     celery_workers = start_celery_workers()
 
-    # TODO: 대시보드 모듈 실행
+    # 대시보드 모듈 실행 (별도 스레드)
+    print("[INFO] 대시보드 서버 시작 중... (http://localhost:5000)")
+    dashboard_thread = threading.Thread(
+        target=lambda: app.run(
+            host="0.0.0.0", port=5000, debug=False, use_reloader=False
+        ),
+        daemon=True,
+    )
+    dashboard_thread.start()
 
     print("[INFO] 스캐너 트리거 시작 중...")
     threading.Thread(target=ScannerTrigger().run, daemon=True).start()

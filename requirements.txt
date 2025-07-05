@@ -7,3 +7,4 @@ mitmproxy==12.1.1
 selenium==4.32.0
 wad==0.4.6
 chardet==5.2.0
+flask==3.0.3

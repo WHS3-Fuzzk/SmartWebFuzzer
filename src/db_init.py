@@ -304,3 +304,17 @@ def initialize_redis_db() -> bool:
     except (redis.ConnectionError, redis.TimeoutError) as e:
         print(f"[ERROR] Redis 연결 실패: {e}")
         return False
+
+
+def initialize_databases():
+    """데이터베이스들을 초기화합니다."""
+    # DB 초기화
+    db = DBInit()
+    db.create_database_if_not_exists()
+    db.create_tables()
+
+    # Redis DB 초기화
+    if not initialize_redis_db():
+        print("[ERROR] Redis 초기화 실패")
+
+    return db

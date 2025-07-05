@@ -1,0 +1,72 @@
+/* 전체 페이지 기본 스타일 */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+h2 {
+    margin-bottom: 10px;
+}
+
+/* 전체 컨테이너: 3열 */
+.container {
+    display: flex;
+    gap: 20px;
+    align-items: stretch; /* 세 열 높이 통일 */
+    height: 700px;
+}
+
+/* 각 열 공통 스타일 */
+.column {
+    flex: 1;
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 10px;
+    overflow: hidden;
+}
+
+/* 섹션 제목 스타일 */
+.section-title {
+    font-weight: bold;
+}
+
+/* textarea 기본 스타일 */
+textarea {
+    flex: 1; /* 모든 textarea 가로폭 채우기 */
+    resize: none;
+    padding: 6px;
+    font-family: monospace;
+    font-size: 13px;
+    overflow-y: auto;
+}
+
+/* 요청 목록 영역 */
+#original-request-list {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+/* 요청 라디오 항목 간격 */
+.request-item {
+    margin-bottom: 6px;
+}
+
+/* 각 textarea 높이 통일 */
+#request-body,
+#response-body,
+#fuzz-body,
+#fuzz-response {
+    height: 120px;
+}
+
+/* 분석 결과만 높이 좀 더 크게 */
+#analysis-result {
+    height: 250px;
+}
