@@ -1,3 +1,5 @@
 .env
 __pycache__/
 db_backups/
+logs/
+*.log

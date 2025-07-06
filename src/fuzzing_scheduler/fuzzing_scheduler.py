@@ -19,6 +19,7 @@ fuzzing_scheduler는 퍼징 요청의 분산/스케줄링과 워커 관리를 �
 """
 
 import os
+from pathlib import Path
 import time
 import subprocess
 from datetime import datetime
@@ -43,6 +44,7 @@ celery_app = Celery(
     imports=[
         "fuzzing_scheduler.fuzzing_scheduler",
         "scanners.example",  # 예시 스캐너 모듈
+        "scanners.ssrf",  # SQL Injection 스캐너 모듈
     ],
 )
 # celery_app.autodiscover_tasks(["scanners"])
@@ -58,6 +60,15 @@ def create_worker_command(queue_name: str, concurrency: int) -> List[str]:
     --concurrency=2: 동시에 2개의 작업을 처리할 수 있는 워커 프로세스(스레드/프로세스) 수를 지정합니다.
     --loglevel=INFO: 로그 레벨을 INFO로 설정하여 실행 중인 작업의 상태를 출력합니다.
     """
+    log_file = (
+        Path(__file__).parent.parent.parent
+        / "logs"
+        / f"celery-{queue_name}_{datetime.now().strftime('%m%d_%H%M%S')}.log"
+    )
+    log_file.parent.mkdir(exist_ok=True)  # 프로젝트 루트 디렉토리 경로
+
+    node_name = f"worker-{queue_name}@%h"  # %h는 호스트명
+
     return [
         "celery",
         "-A",
@@ -65,8 +76,11 @@ def create_worker_command(queue_name: str, concurrency: int) -> List[str]:
         "worker",
         "-Q",
         queue_name,
+        "-n",  # 노드 이름 옵션 추가
+        node_name,
         f"--concurrency={concurrency}",
         "--loglevel=INFO",
+        f"--logfile={log_file}",
     ]
 
 
