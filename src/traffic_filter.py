@@ -36,6 +36,11 @@ EXCLUDED_PATTERNS = [
     "\\.css$",
     "\\.js$",
     "\\.gif$",
+    "\\.svg$",
+    "\\.woff2?$",
+    "\\.ttf$",
+    "\\.eot$",
+    "\\.otf$",
 ]
 
 
