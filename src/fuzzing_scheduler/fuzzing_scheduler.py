@@ -137,46 +137,91 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
     # RequestData의 형태로 인자가 전달되면 requests.request에 맞게 변환
     if request_data:
         kwargs.update(requestdata_to_requests_kwargs(request_data))
-    response = requests.request(*args, **kwargs, timeout=30)
 
-    # 인코딩 자동 감지
-    detected_encoding = chardet.detect(response.content)["encoding"]
-    body = response.content.decode(detected_encoding or "utf-8", errors="replace")
+    try:
+        response = requests.request(*args, **kwargs, timeout=5)
 
-    return {
-        "status_code": response.status_code,
-        "headers": dict(response.headers),
-        "text": response.text,
-        "elapsed_time": response.elapsed.total_seconds(),
-        "http_version": response.raw.version,
-        "url": response.url,
-        "body": body,
-        "timestamp": datetime.now(),
-        "cookies": dict(response.cookies),
-        "request_info": {
-            "method": response.request.method,
-            "url": response.request.url,
-            "headers": dict(response.request.headers),
-            "body": (
-                response.request.body.decode("utf-8", errors="replace")
-                if isinstance(response.request.body, bytes)
-                else str(response.request.body)
+        # 인코딩 자동 감지
+        detected_encoding = chardet.detect(response.content)["encoding"]
+        body = response.content.decode(detected_encoding or "utf-8", errors="replace")
+
+        return {
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "text": response.text,
+            "elapsed_time": response.elapsed.total_seconds(),
+            "http_version": response.raw.version,
+            "url": response.url,
+            "body": body,
+            "timestamp": datetime.now(),
+            "cookies": dict(response.cookies),
+            "request_info": {
+                "method": response.request.method,
+                "url": response.request.url,
+                "headers": dict(response.request.headers),
+                "body": (
+                    response.request.body.decode("utf-8", errors="replace")
+                    if isinstance(response.request.body, bytes)
+                    else str(response.request.body)
+                ),
+            },
+            "request_data": request_data,
+            "redirect_history": (
+                [
+                    {
+                        "status_code": r.status_code,
+                        "url": r.url,
+                        "headers": dict(r.headers),
+                    }
+                    for r in response.history
+                ]
+                if response.history
+                else None
             ),
-        },
-        "request_data": request_data,
-        "redirect_history": (
-            [
-                {
-                    "status_code": r.status_code,
-                    "url": r.url,
-                    "headers": dict(r.headers),
-                }
-                for r in response.history
-            ]
-            if response.history
-            else None
-        ),
-    }
+        }
+
+    except requests.exceptions.Timeout as e:
+        # 타임아웃 발생 시 타임아웃 정보를 포함한 응답 반환
+        return {
+            "elapsed_time": 5.0,  # 타임아웃 시간
+            "error_message": f"timeout: {str(e)}",
+            "error_type": "timeout",
+            "request_data": request_data,
+        }
+
+    except requests.exceptions.ConnectionError as e:
+        # 연결 오류 발생 시 - SSRF 탐지에 중요한 정보
+        error_str = str(e).lower()
+
+        # 에러 종류 세분화
+        if "connection refused" in error_str:
+            error_subtype = "connection_refused"
+        elif (
+            "name or service not known" in error_str
+            or "nodename nor servname provided" in error_str
+        ):
+            error_subtype = "dns_resolution_failed"
+        elif "network is unreachable" in error_str:
+            error_subtype = "network_unreachable"
+        elif "connection timed out" in error_str:
+            error_subtype = "connection_timeout"
+        else:
+            error_subtype = "connection_error"
+
+        return {
+            "error_message": f"{error_subtype}: {str(e)}",
+            "error_type": "connection_error",
+            "error_subtype": error_subtype,
+            "request_data": request_data,
+        }
+
+    except requests.exceptions.RequestException as e:
+        # 기타 요청 관련 예외 (SSL 오류, 잘못된 URL 등)
+        return {
+            "error_message": f"request_error: {str(e)}",
+            "error_type": "request_error",
+            "request_data": request_data,
+        }
 
 
 def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
