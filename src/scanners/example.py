@@ -90,7 +90,8 @@ class ExampleScanner(BaseScanner):
         for fuzzing_request in self.generate_fuzzing_requests(request):
 
             async_result = chain(
-                send_fuzz_request.s(request_data=fuzzing_request) | analyze_response.s()
+                send_fuzz_request.s(request_data=fuzzing_request)
+                | analyze_response_example.s()
             ).apply_async()
             if async_result is not None:
                 async_results.append(async_result)
@@ -175,8 +176,8 @@ class ExampleScanner(BaseScanner):
         return []
 
 
-@celery_app.task(name="tasks.analyze_response", queue="analyze_response")
-def analyze_response(
+@celery_app.task(name="tasks.analyze_response_example", queue="analyze_response")
+def analyze_response_example(
     response: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
