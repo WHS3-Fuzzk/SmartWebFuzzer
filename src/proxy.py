@@ -53,6 +53,7 @@ def start_browser_and_browse() -> webdriver.Chrome:
     """
     chrome_options = Options()
     chrome_options.add_argument(f"--proxy-server={PROXY_HOST}:{PROXY_PORT}")
+    chrome_options.add_argument("--proxy-bypass-list=<-loopback>")
     chrome_options.add_argument("--ignore-certificate-errors")
     chrome_options.add_argument("--remote-allow-origins=*")
     chrome_options.add_argument("--disable-extensions")
