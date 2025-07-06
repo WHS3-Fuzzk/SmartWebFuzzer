@@ -152,9 +152,15 @@ def flow_to_request_dict(flow: http.HTTPFlow):
         else None
     )
 
-    # is_http: HTTP/HTTPS면 1, 아니면 0
+    # HTTP/HTTPS 구분 (HTTP=1, HTTPS=0, 기타= -1)
     scheme = flow.request.scheme.lower()
-    is_http = 1 if scheme in ("http", "https") else 0
+
+    if scheme == "http":
+        is_http = 1
+    elif scheme == "https":
+        is_http = 0
+    else:
+        is_http = -1
 
     request_dict = {
         "is_http": is_http,
@@ -162,7 +168,7 @@ def flow_to_request_dict(flow: http.HTTPFlow):
         "domain": flow.request.host,
         "path": flow.request.path,
         "method": flow.request.method,
-        "timestamp": datetime.now(),
+        "timestamp": datetime.fromtimestamp(flow.request.timestamp_start),
         "headers": dict(flow.request.headers),
         "query": query_params,
         "body": body_dict,
@@ -197,9 +203,11 @@ def flow_to_response_dict(flow: http.HTTPFlow):
         body_dict = None
 
     response_dict = {
-        "http_version": flow.response.http_version if flow.response else "",
-        "status_code": flow.response.status_code if flow.response else 0,
-        "timestamp": datetime.now(),
+        "http_version": flow.response.http_version if flow.response else "-1",
+        "status_code": flow.response.status_code if flow.response else -1,
+        "timestamp": datetime.fromtimestamp(
+            flow.response.timestamp_start if flow.response else -1
+        ),
         "headers": headers,
         "body": body_dict,
     }
