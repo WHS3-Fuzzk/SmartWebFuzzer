@@ -20,7 +20,7 @@ from db_init import initialize_databases
 import proxy
 from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
-from dashboard.app import app
+from dashboard.app import app, close_connection_pool
 
 
 def main():
@@ -84,6 +84,11 @@ def main():
         # DB 백업
         print("[INFO] DB 백업 시작...")
         db.backup_database()
+
+        # 대시보드 DB cleanup
+        print("[INFO] 대시보드 DB 연결 풀 종료 중...")
+
+        close_connection_pool()
 
         print("[INFO] 종료 중...")
 

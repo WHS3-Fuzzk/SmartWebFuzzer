@@ -14,20 +14,20 @@
     <div class="container">
         <!-- 왼쪽 : 원본 요청 -->
         <div class="column">
-            <div class="section-title">📦 원본 요청</div>
+            <div class="section-title" id="original-request-title">📦 원본 요청 목록</div>
             <div id="original-request-list"></div>
 
-            <div class="section-title">📝 요청 본문</div>
+            <div class="section-title">📝 원본 요청 본문</div>
             <textarea id="request-body" readonly></textarea>
 
-            <div class="section-title">📬 요청 응답</div>
+            <div class="section-title">📬 원본 응답 본문</div>
             <textarea id="response-body" readonly></textarea>
         </div>
 
         <!-- 가운데 : 퍼징 요청 및 응답 -->
         <div class="column">
-            <div class="section-title">📨 퍼징 요청 & 응답</div>
-            <select id="fuzz-select"></select>
+            <div class="section-title" id="fuzz-request-title">📨 퍼징 요청 선택</div>
+            <div id="fuzz-request-list"></div>
 
             <div class="section-title">📤 퍼징 요청 본문</div>
             <textarea id="fuzz-body" readonly></textarea>
@@ -38,7 +38,7 @@
 
         <!-- 오른쪽 : 분석 결과 -->
         <div class="column">
-            <div class="section-title">📊 분석 결과</div>
+            <div class="section-title">📊 취약점 분석 결과</div>
             <textarea id="analysis-result" readonly></textarea>
         </div>
     </div>
