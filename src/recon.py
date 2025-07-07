@@ -47,6 +47,8 @@ def run_recon(domain: str, path: str) -> int:
 
     # 동일 domain, path로 중복 저장 여부 확인
     reader = DBReader()
+
+    path = path.split("?")[0]
     recon_id = reader.get_recon_id_by_domain_path(domain, path)
     if recon_id != -1:
         return recon_id

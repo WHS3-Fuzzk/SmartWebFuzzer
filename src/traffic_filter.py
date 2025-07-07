@@ -167,11 +167,14 @@ def flow_to_request_dict(flow: http.HTTPFlow):
     else:
         is_http = -1
 
+    # flow.request.path에서 ?를 기준으로 쿼리 파라미터 제거
+    path = flow.request.path.split("?")[0]
+
     request_dict = {
         "is_http": is_http,
         "http_version": flow.request.http_version,
         "domain": flow.request.host,
-        "path": flow.request.path,
+        "path": path,
         "method": flow.request.method,
         "timestamp": datetime.fromtimestamp(flow.request.timestamp_start),
         "headers": dict(flow.request.headers),
