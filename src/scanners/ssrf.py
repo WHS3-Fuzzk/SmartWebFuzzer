@@ -22,6 +22,24 @@ from typedefs import RequestData
 class SSRFScanner(BaseScanner):
     """SSRF Scanner Class"""
 
+    keywords = [
+        "file",
+        "url",
+        "uri",
+        "path",
+        "host",
+        "ip",
+        "src",
+        "dest",
+        "redirect",
+        "callback",
+        "next",
+        "target",
+        "link",
+        "href",
+        "api",
+    ]
+
     @property
     def vulnerability_name(self) -> str:
         return "ssrf"
@@ -30,36 +48,20 @@ class SSRFScanner(BaseScanner):
         """
         쿼리 파라미터, 바디에 file, url, uri, path, host, ip 등의 키워드가 포함되어 있는지 확인합니다.
         """
-        keywords = [
-            "file",
-            "url",
-            "uri",
-            "path",
-            "host",
-            "ip",
-            "src",
-            "dest",
-            "redirect",
-            "callback",
-            "next",
-            "target",
-            "link",
-            "href",
-        ]
 
         # 쿼리 파라미터에서 키워드 검색
         if request["query_params"]:
             for param in request["query_params"]:
                 param_key = param["key"].lower()
                 param_value = param["value"].lower()
-                for keyword in keywords:
+                for keyword in self.keywords:
                     if keyword in param_key or keyword in param_value:
                         return True
 
         # 바디에서 키워드 검색
         if request["body"]:
             body_content = request["body"]["body"].lower()
-            for keyword in keywords:
+            for keyword in self.keywords:
                 if keyword in body_content:
                     return True
 
@@ -74,22 +76,7 @@ class SSRFScanner(BaseScanner):
                 current_path = f"{path}.{key}" if path else key
                 if isinstance(value, str) and any(
                     keyword in key.lower() or keyword in value.lower()
-                    for keyword in [
-                        "file",
-                        "url",
-                        "uri",
-                        "path",
-                        "host",
-                        "ip",
-                        "src",
-                        "dest",
-                        "redirect",
-                        "callback",
-                        "next",
-                        "target",
-                        "link",
-                        "href",
-                    ]
+                    for keyword in self.keywords
                 ):
                     injection_points.append(current_path)
                 if isinstance(value, (dict, list)):
@@ -146,24 +133,10 @@ class SSRFScanner(BaseScanner):
             # 쿼리 파라미터에 페이로드 주입
             if fuzzed_request["query_params"]:
                 for param in fuzzed_request["query_params"]:
+                    # 키워드가 포함된 파라미터를 모두 퍼징 (stockApi, myApiKey 등도 포함)
                     if any(
-                        keyword in param["key"].lower()
-                        for keyword in [
-                            "file",
-                            "url",
-                            "uri",
-                            "path",
-                            "host",
-                            "ip",
-                            "src",
-                            "dest",
-                            "redirect",
-                            "callback",
-                            "next",
-                            "target",
-                            "link",
-                            "href",
-                        ]
+                        keyword.lower() in param["key"].lower()
+                        for keyword in self.keywords
                     ):
                         param["value"] = payload
                         # 퍼징 정보 기록
@@ -182,26 +155,12 @@ class SSRFScanner(BaseScanner):
                 # Content-Type에 따른 주입 방식 결정
                 if "application/x-www-form-urlencoded" in content_type:
                     # URL 인코딩된 폼 데이터
-                    for keyword in [
-                        "file",
-                        "url",
-                        "uri",
-                        "path",
-                        "host",
-                        "ip",
-                        "src",
-                        "dest",
-                        "redirect",
-                        "callback",
-                        "next",
-                        "target",
-                        "link",
-                        "href",
-                    ]:
+                    for keyword in self.keywords:
                         if keyword in body_content.lower():
                             print(f"Fuzzing body with keyword: {keyword}")
 
-                            pattern = rf"({keyword}=)([^&]+)"
+                            # 키워드가 포함된 파라미터를 모두 퍼징 (stockApi, myApiKey 등도 포함)
+                            pattern = rf"([^&=]*{keyword}[^&=]*=)([^&]+)"
                             if re.search(pattern, body_content, re.IGNORECASE):
                                 fuzzed_request["body"]["body"] = re.sub(
                                     pattern,
@@ -254,30 +213,15 @@ class SSRFScanner(BaseScanner):
 
                 elif "multipart/form-data" in content_type:
                     # 멀티파트 폼 데이터
-                    for keyword in [
-                        "file",
-                        "url",
-                        "uri",
-                        "path",
-                        "host",
-                        "ip",
-                        "src",
-                        "dest",
-                        "redirect",
-                        "callback",
-                        "next",
-                        "target",
-                        "link",
-                        "href",
-                    ]:
+                    for keyword in self.keywords:
                         if keyword in body_content.lower():
 
-                            # Content-Disposition 헤더에서 키워드 찾기
-                            pattern = rf'name="{keyword}"[^>]*\r?\n\r?\n([^\r\n-]+)'
+                            # Content-Disposition 헤더에서 키워드가 포함된 파라미터 찾기
+                            pattern = rf'name="([^"]*{keyword}[^"]*)"[^>]*\r?\n\r?\n([^\r\n-]+)'
                             if re.search(pattern, body_content, re.IGNORECASE):
                                 fuzzed_request["body"]["body"] = re.sub(
                                     pattern,
-                                    rf'name="{keyword}"\r\n\r\n{payload}',
+                                    rf'name="\1"\r\n\r\n{payload}',
                                     body_content,
                                     flags=re.IGNORECASE,
                                 )
@@ -292,25 +236,11 @@ class SSRFScanner(BaseScanner):
 
                 else:
                     # 기타 Content-Type (text/plain, application/xml 등)
-                    for keyword in [
-                        "file",
-                        "url",
-                        "uri",
-                        "path",
-                        "host",
-                        "ip",
-                        "src",
-                        "dest",
-                        "redirect",
-                        "callback",
-                        "next",
-                        "target",
-                        "link",
-                        "href",
-                    ]:
+                    for keyword in self.keywords:
                         if keyword in body_content.lower():
 
-                            pattern = rf"({keyword}[=:]\s*)([^&\s]+)"
+                            # 키워드가 포함된 파라미터를 모두 퍼징 (stockApi, myApiKey 등도 포함)
+                            pattern = rf"([^=:]*{keyword}[^=:]*[=:]\s*)([^&\s]+)"
                             if re.search(pattern, body_content, re.IGNORECASE):
                                 fuzzed_request["body"]["body"] = re.sub(
                                     pattern,
