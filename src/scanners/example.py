@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 """
 이 모듈은 BaseScanner를 상속받아 새로운 취약점 스캐너를 구현할 때 참고할 수 있는 예시입니다.
 
@@ -7,6 +8,7 @@
 
 새로운 취약점 스캐너를 만들 때, 이 구조를 참고하여 구현하세요.
 """
+
 
 import time
 from datetime import datetime

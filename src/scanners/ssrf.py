@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code,too-many-nested-blocks,too-many-branches
 """SSRF Scanner Module"""
 
 import re
@@ -91,7 +92,7 @@ class SSRFScanner(BaseScanner):
                     ]
                 ):
                     injection_points.append(current_path)
-                elif isinstance(value, (dict, list)):
+                if isinstance(value, (dict, list)):
                     # 재귀 호출
                     injection_points.extend(
                         self._find_all_injection_points(value, current_path)
@@ -116,7 +117,7 @@ class SSRFScanner(BaseScanner):
                 if path == target_path and isinstance(value, str):
                     obj[key] = payload
                     return True
-                elif isinstance(value, (dict, list)):
+                if isinstance(value, (dict, list)):
                     if self._inject_payload_at_specific_point(
                         value, payload, target_path, path
                     ):
@@ -444,9 +445,10 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
     error_message = response.get("error_message", "").lower()
     error_type = response.get("error_type", "")
 
-    print(
-        f"[analyze_ssrf_response] 응답 시간: {response_time}초, 상태 코드: {status_code}, 에러 타입: {error_type}, 에러 메시지: {error_message}"
-    )
+    # 긴 로그 메시지를 여러 줄로 분할
+    print(f"[analyze_ssrf_response] 응답 시간: {response_time}초")
+    print(f"상태 코드: {status_code}, 에러 타입: {error_type}")
+    print(f"에러 메시지: {error_message}")
 
     # 페이로드 정보 추출
     payload = response.get("request_data", {}).get("extra", {}).get("payload", "")
@@ -461,7 +463,7 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     # 2. 연결 오류 기반 탐지 (내부 서비스 접근 시도)
-    elif error_type == "connection_error":
+    if error_type == "connection_error":
         # 내부 IP나 로컬 서비스에 접근을 시도했을 때 연결 오류가 발생하는 경우
         if any(
             internal_indicator in payload
@@ -487,7 +489,7 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
             }
 
     # 3. 빠른 응답의 경우 /etc/services 내용 검사
-    elif error_type == "" and response_time < 5 and status_code == 200:
+    if error_type == "" and response_time < 5 and status_code == 200:
         # /etc/services 파일의 특징적인 내용들
         services_indicators = [
             "ftp",
@@ -532,7 +534,7 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
             }
 
         # 포트 번호 패턴 확인 (예: ssh 22/tcp, http 80/tcp)
-        elif (
+        if (
             "22/tcp" in response_lower
             or "80/tcp" in response_lower
             or "443/tcp" in response_lower
