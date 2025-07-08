@@ -28,6 +28,7 @@ class SSRFScanner(BaseScanner):
         "uri",
         "path",
         "host",
+        "port",
         "ip",
         "src",
         "dest",
@@ -122,7 +123,7 @@ class SSRFScanner(BaseScanner):
     def generate_fuzzing_requests(self, request: RequestData) -> Iterable[RequestData]:
         """SSRF 페이로드를 생성하여 퍼징 요청을 만듭니다."""
         payloads = [
-            "@198.51.100.42:65535",
+            "@198.51.100.42",
             "file:///etc/services",
         ]
 
@@ -290,7 +291,7 @@ class SSRFScanner(BaseScanner):
                     result = res.get()
 
                     # 추가 동작
-                    if result and res.parent is not None:
+                    if res.parent is not None:
                         # 퍼징 요청과 응답, 분석 결과를 DB에 저장
                         fuzzed_request: RequestData = res.parent.get().get(
                             "request_data"
