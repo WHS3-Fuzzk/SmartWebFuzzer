@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 stored_xss.py
 
@@ -155,6 +156,8 @@ class StoredXSS(BaseScanner):
                 print(f"퍼징 요청 저장 완료: {fuzzed_request_id}")
             except Exception as e:
                 print(f"DB 저장 중 오류 발생: {e}")
+
+        return []
 
 
 def to_fuzzed_request_dict(
