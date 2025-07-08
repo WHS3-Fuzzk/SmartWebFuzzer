@@ -31,7 +31,6 @@ from celery import Celery
 
 from typedefs import RequestData
 
-
 # 멀티프로세싱 환경에서 celery 오류 방지
 os.environ.setdefault("FORKED_BY_MULTIPROCESSING", "1")
 
@@ -43,6 +42,7 @@ celery_app = Celery(
     # TODO: imports에 스캐너 모듈을 추가하여 자동으로 로드되도록 설정 필요
     imports=[
         "fuzzing_scheduler.fuzzing_scheduler",
+        "scanners.reflected_xss",  # 예시 스캐너 모듈
         "scanners.example",  # 예시 스캐너 모듈
         "scanners.ssrf",  # SQL Injection 스캐너 모듈
     ],
