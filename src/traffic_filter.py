@@ -44,6 +44,29 @@ EXCLUDED_PATTERNS = [
     "\\.otf$",
 ]
 
+TARGET_DOMAINS_PORT_INCLUDED = {}  # { "example.com": True/False, ... }
+
+
+def init_target_domains_port_included():
+    """
+    TARGET_DOMAINS 리스트를 순회하면서
+    각 도메인에 대해 포트가 포함되어 있는지 여부를 판단하여
+    HOST만 키로 하고, 포트 포함 여부(True/False)를 값으로 갖는
+    TARGET_DOMAINS_PORT_INCLUDED 딕셔너리를 초기화한다.
+    예)
+      "example.com:8080" -> {"example.com": True}
+      "example.com"       -> {"example.com": False}
+    """
+    for target in TARGET_DOMAINS:
+        if ":" in target:
+            TARGET_DOMAINS_PORT_INCLUDED[target.split(":")[0]] = True
+        else:
+            TARGET_DOMAINS_PORT_INCLUDED[target] = False
+
+
+# 스크립트 시작 시 한번 실행
+init_target_domains_port_included()
+
 
 def is_excluded_url(url: str) -> bool:
     """
@@ -100,8 +123,21 @@ def is_valid_request(flow: http.HTTPFlow) -> bool:
     """
     타겟 도메인이 포함된 요청인지 검사
     """
-    host = flow.request.pretty_host.lower()
-    return any(target in host for target in TARGET_DOMAINS)
+    host = flow.request.host
+    port = str(flow.request.port)
+    host_with_port = f"{host}:{port}"
+
+    for target in TARGET_DOMAINS:
+        # target이 포트를 포함한 경우: 정확히 일치해야 함
+        if ":" in target:
+            if target == host_with_port:
+                return True
+        else:
+            # 포트 없이 입력한 경우: host만 비교
+            if target == host:
+                return True
+
+    return False
 
 
 def is_valid_response(flow: http.HTTPFlow) -> bool:
@@ -111,8 +147,23 @@ def is_valid_response(flow: http.HTTPFlow) -> bool:
     if not flow.response:
         return False
 
-    host = flow.request.pretty_host.lower()
-    if not any(target in host for target in TARGET_DOMAINS):
+    host = flow.request.host
+    port = str(flow.request.port)
+    host_with_port = f"{host}:{port}"
+
+    # 도메인 매칭 로직: 요청 쪽과 같은 방식으로 포트 포함 여부 따져서 정확히 비교
+    matched = False
+    for target in TARGET_DOMAINS:
+        if ":" in target:
+            if target == host_with_port:
+                matched = True
+                break
+        else:
+            if target == host:
+                matched = True
+                break
+
+    if not matched:
         return False
 
     status_code = flow.response.status_code
@@ -125,10 +176,18 @@ def is_valid_response(flow: http.HTTPFlow) -> bool:
     return True
 
 
-def flow_to_request_dict(flow: http.HTTPFlow):
+def flow_to_request_dict(flow: http.HTTPFlow):  # pylint: disable=too-many-locals
     """
     insert_filtered_request 인터페이스에 맞게 변환
     """
+    host = flow.request.host
+    port = str(flow.request.port)
+
+    # 도메인 저장시 포트 포함 여부 판단
+    # TARGET_DOMAINS_PORT_INCLUDED에서 호스트에 대한 플래그 조회
+    include_port = TARGET_DOMAINS_PORT_INCLUDED.get(host, False)
+
+    domain_value = f"{host}:{port}" if include_port else host
     # 쿼리 파라미터 변환
     query_params = []
     for k, v in flow.request.query.items(multi=True):
@@ -174,7 +233,7 @@ def flow_to_request_dict(flow: http.HTTPFlow):
     request_dict = {
         "is_http": is_http,
         "http_version": flow.request.http_version,
-        "domain": flow.request.host,
+        "domain": domain_value,
         "path": path,
         "method": flow.request.method,
         "timestamp": datetime.fromtimestamp(flow.request.timestamp_start),
