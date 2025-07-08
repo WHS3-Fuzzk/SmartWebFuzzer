@@ -10,6 +10,7 @@ from datetime import datetime
 
 from mitmproxy import http
 
+from stored_xss_detector import analyze_stored_xss_flow
 from db_writer import insert_filtered_request, insert_filtered_response
 from recon import run_recon
 
@@ -256,11 +257,16 @@ def response(flow: http.HTTPFlow) -> None:
     if is_excluded_url(url):
         return
 
-    if is_duplicated_by_flow(flow, mode="response"):
-        return
-
     # 응답 저장 (DB_Writer)
     response_dict = flow_to_response_dict(flow)
+
+    # Stored XSS 분석
+    # print(f"[BEFORE_STORED_XSS]{response_dict}")
+    findings = analyze_stored_xss_flow(response_dict)
+    print(f"[S_XSS] Stored XSS 분석 결과: {findings}")
+
+    if is_duplicated_by_flow(flow, mode="response"):
+        return
 
     # flow.id로 이 응답에 대응하는 request_id 조회
     request_id = flow_id_to_request_id_map.get(flow.id)
@@ -269,5 +275,5 @@ def response(flow: http.HTTPFlow) -> None:
         insert_filtered_response(response_dict, request_id)
     else:
         print(
-            f"[Error]request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
+            f"[Error] request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
         )

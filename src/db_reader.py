@@ -209,3 +209,46 @@ class DBReader:
         except psycopg2.DatabaseError as e:
             # DB 관련 예외만 감싸서 올림
             raise RuntimeError(f"DB fetch_ids error: {e}") from e
+
+    def select_fuzzed_request_with_original_id(
+        self, original_request_id: int
+    ) -> Dict[str, Any]:
+        """original_request_id->
+        fuzzed_request, fuzzed_headers, fuzzed_query_params, fuzzed_requests_body 읽기
+        """
+        with self._cur() as c:
+            # fuzzed_request
+            c.execute(
+                "SELECT * FROM fuzzed_request WHERE original_request_id=%s",
+                (original_request_id,),
+            )
+            meta = c.fetchone()
+            if not meta:
+                raise KeyError(
+                    f"fuzzed_request with original_request_id {original_request_id} not found",
+                )
+
+            # fuzzed_headers
+            c.execute(
+                "SELECT key, value FROM fuzzed_request_headers "
+                "WHERE fuzzed_request_id=%s ORDER BY id",
+                (meta["id"],),
+            )
+            headers = c.fetchall()
+
+            # fuzzed_query_params
+            c.execute(
+                "SELECT key, value, source FROM fuzzed_query_params "
+                "WHERE fuzzed_request_id=%s ORDER BY id",
+                (meta["id"],),
+            )
+            params = c.fetchall()
+
+            # fuzzed_request_body
+            c.execute(
+                "SELECT * FROM fuzzed_request_body WHERE fuzzed_request_id=%s",
+                (meta["id"],),
+            )
+            body = c.fetchone()
+
+        return {"meta": meta, "headers": headers, "query_params": params, "body": body}
