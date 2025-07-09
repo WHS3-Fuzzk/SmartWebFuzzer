@@ -91,49 +91,69 @@ def check_payload_in_attributes(html_text, payload):
 
     return results
 
-
-def analyze_stored_xss_flow(response: dict) -> dict:
+def analyze_stored_xss_flow(response: dict) -> List[dict]:
     """
-    mitmproxy HTTPFlow 객체에서 Stored XSS 페이로드 반영 여부를 분석 (reflected_xss의 analyze_response와 유사)
+    mitmproxy HTTPFlow 객체를 dict형식으로 변환한 후
+    Stored XSS 페이로드 반영 여부를 분석 (reflected_xss의 analyze_response와 유사)
+    이제는 payload와 함께 parameter명을 직접 추출하여 기록
     """
     reader = DBReader()
-    pattern = re.compile(r'\'"fake=whs3fuzzk-(\d+)>')
+    # payload + request_id + param_id
+    pattern = re.compile(r'\'"fake=whs3fuzzk-(\d+)-(\d+)>')
     body_dict = response.get("body")
     if isinstance(body_dict, dict):
         response_body = body_dict.get("body", "")
     else:
         response_body = ""
 
-    match = pattern.search(response_body)
-    if not match:
+    matches = pattern.findall(response_body)
+    if not matches:
         print("[S_XSS] 페이로드가 응답에 없음")
-        return {}
+        return []
+    print(f"[S_XSS] 총 {len(matches)}개의 페이로드 탐지됨")
 
-    request_id = int(match.group(1))
-    fuzzed_request = reader.select_fuzzed_request_with_original_id(request_id)
-    if not fuzzed_request:
-        print(f"[S_XSS] fuzzed_request 조회 실패: request_id={request_id}")
-        return {}
-    print(f"[S_XSS] fuzzed_request 조회 성공! request_id: {request_id}")
+    all_fuzzed_requests = reader.select_fuzzed_request_with_original_id_all(int(matches[0][0]))
+    if not all_fuzzed_requests:
+        print(f"[S_XSS] fuzzed_request 조회 실패: request_id={matches[0][0]}")
+        return []
 
     # DB에 저장할 dict 구성
-    payload_param = fuzzed_request["meta"].get("payload", "")
-    if ":" in payload_param:
-        payload, parameter = payload_param.split(":", 1)
-    else:
-        payload, parameter = payload_param, ""
-    scan_result = {
-        "vulnerability_name": "stored_xss",
-        "original_request_id": request_id,
-        "fuzzed_request_id": fuzzed_request["meta"].get("id"),
-        "domain": fuzzed_request["meta"].get("domain"),
-        "endpoint": fuzzed_request["meta"].get("path"),
-        "method": fuzzed_request["meta"].get("method"),
-        "payload": payload,
-        "parameter": parameter,
-        "extra": {
-            "attribute_check": check_payload_in_attributes(response_body, pattern),
-        },
-    }
-    insert_vulnerability_scan_result(scan_result)
-    return scan_result
+    results = []
+    for req_id_str, param_id_str in matches:
+        request_id = int(req_id_str)
+        param_id = int(param_id_str)
+
+        matched_fuzzed_request = None
+        for fr in all_fuzzed_requests:
+            payload_meta = fr["meta"].get("payload", "")
+            if payload_meta.endswith(f":{param_id}"):
+                matched_fuzzed_request = fr
+                break
+
+        if not matched_fuzzed_request:
+            print(f"[S_XSS] param_id={param_id}에 맞는 fuzzed_request가 없음")
+            continue
+
+        payload_param = matched_fuzzed_request["meta"].get("payload", "")
+        parts = payload_param.split(":")
+        payload = parts[0] if len(parts) >= 1 else ""
+        parameter = parts[1] if len(parts) >= 2 else ""
+
+        scan_result = {
+            "vulnerability_name": "stored_xss",
+            "original_request_id": request_id,
+            "fuzzed_request_id": matched_fuzzed_request["meta"].get("id"),
+            "domain": matched_fuzzed_request["meta"].get("domain"),
+            "endpoint": matched_fuzzed_request["meta"].get("path"),
+            "method": matched_fuzzed_request["meta"].get("method"),
+            "payload": payload,
+            "parameter": parameter,
+            "extra": {
+                "attribute_check": check_payload_in_attributes(response_body, pattern),
+            },
+        }
+
+        insert_vulnerability_scan_result(scan_result)
+        results.append(scan_result)
+
+    return results

@@ -47,13 +47,13 @@ class StoredXSS(BaseScanner):
         """
         단일 페이로드에 request_id를 포함하여 사용할 것.
         """
-        self.payload_template = "'\"fake=whs3fuzzk-{rid}><whs3fuzzk-{rid}>"
+        self.payload_template = "'\"fake=whs3fuzzk-{rid}-{pid}><whs3fuzzk-{rid}-{pid}>"
 
-    def get_payload(self, request_id: int) -> str:
+    def get_payload(self, request_id: int, param_id: int) -> str:
         """
         request_id를 포함한 페이로드 생성
         """
-        return self.payload_template.format(rid=request_id)
+        return self.payload_template.format(rid=request_id, pid=param_id)
 
     def is_target(self, request_id: int, request: RequestData) -> bool:
         """
@@ -88,10 +88,10 @@ class StoredXSS(BaseScanner):
         headers = request.get("headers") or []
         if "application/x-www-form-urlencoded" in content_type:
             params = urllib.parse.parse_qsl(raw_body, keep_blank_values=True)
-            payload = self.get_payload(request_id)
-            for i, (k, v) in enumerate(params):
+            for param_id, (k, v) in enumerate(params):
+                payload = self.get_payload(request_id, param_id)
                 new_params = list(params)
-                new_params[i] = (k, payload)
+                new_params[param_id] = (k, payload)
                 new_body_str = urllib.parse.urlencode(new_params)
                 new_content_length = str(len(new_body_str.encode("utf-8")))
                 # deepcopy로 원본 훼손 방지
@@ -106,6 +106,7 @@ class StoredXSS(BaseScanner):
                 new_request["extra"] = {
                     "fuzzed_param": k,
                     "payload": payload,
+                    "param_id": param_id,
                     "type": "stored_xss",
                 }
                 # print(f"{request}")
@@ -142,9 +143,10 @@ class StoredXSS(BaseScanner):
                 fuzzing_request=fuzz_request,
                 original_request_id=request_id,
                 scanner=self.vulnerability_name,
-                payload="{}:{}".format(
+                payload="{}:{}:{}".format(
                     fuzz_request.get("extra", {}).get("payload", ""),
                     fuzz_request.get("extra", {}).get("fuzzed_param", ""),
+                    fuzz_request.get("extra", {}).get("param_id", ""),
                 ),
             )
             try:
