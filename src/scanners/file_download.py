@@ -1,5 +1,5 @@
 # src/scanners/file_download.py
-# pylint: disable=invalid-name, arguments-differ, arguments-renamed
+# pylint: skip-file
 """
 FileDownloadScanner: 파일 다운로드 취약점 탐지 스캐너
 
@@ -275,15 +275,16 @@ class FileDownloadScanner(BaseScanner):
             result = {}
             try:
                 async_result = analyze_file_download_response.apply_async(
-                    args=[{
-                        **fuzz_response,
-                        "extra": fuzz_request.get("extra", {}),
-                        "normal_body_hash": _body_hash(normal_body),
-                    }]
+                    args=[
+                        {
+                            **fuzz_response,
+                            "extra": fuzz_request.get("extra", {}),
+                            "normal_body_hash": _body_hash(normal_body),
+                        }
+                    ]
                 )
                 result = async_result.get()
                 print(f"[DEBUG] Celery 분석 결과 수신 완료 → {result}")
-
 
                 result = async_result.get()
             except (CeleryTimeoutError, TaskRevokedError) as e:
@@ -316,7 +317,9 @@ class FileDownloadScanner(BaseScanner):
             return False
         seen_pairs.add((scan_url, result_payload))
 
-        print(f"[RESULT] 분석 결과:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
+        print(
+            f"[RESULT] 분석 결과:\n{json.dumps(result, indent=2, ensure_ascii=False)}"
+        )
 
         req_dict = to_fuzzed_request_dict(
             fuzz_request,
@@ -331,22 +334,24 @@ class FileDownloadScanner(BaseScanner):
 
         if result.get("evidence"):
             print(f"[+] 의심 응답 감지됨 → 증거: {result['evidence']}")
-            insert_vulnerability_scan_result({
-                "vulnerability_name": self.vulnerability_name,
-                "original_request_id": self.request_id,
-                "fuzzed_request_id": fuzzed_request_id,
-                "domain": req_dict.get("domain", ""),
-                "endpoint": req_dict.get("path", ""),
-                "method": req_dict.get("method", ""),
-                "payload": result_payload,
-                "parameter": fuzz_request.get("extra", {}).get("param_key", "-"),
-                "extra": {
-                    "confidence": 0.9,
-                    "details": result.get("evidence"),
-                    "timestamp": datetime.now().isoformat(),
-                    "type": result.get("type", "File Download"),
-                },
-            })
+            insert_vulnerability_scan_result(
+                {
+                    "vulnerability_name": self.vulnerability_name,
+                    "original_request_id": self.request_id,
+                    "fuzzed_request_id": fuzzed_request_id,
+                    "domain": req_dict.get("domain", ""),
+                    "endpoint": req_dict.get("path", ""),
+                    "method": req_dict.get("method", ""),
+                    "payload": result_payload,
+                    "parameter": fuzz_request.get("extra", {}).get("param_key", "-"),
+                    "extra": {
+                        "confidence": 0.9,
+                        "details": result.get("evidence"),
+                        "timestamp": datetime.now().isoformat(),
+                        "type": result.get("type", "File Download"),
+                    },
+                }
+            )
 
         return result.get("success", False)
 
@@ -400,7 +405,6 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
         "evidence": evidence,
         "success": success,
     }
-
 
 
 def to_fuzzed_request_dict(

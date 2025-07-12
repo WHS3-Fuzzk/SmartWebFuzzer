@@ -210,11 +210,12 @@ class DBReader:
             # DB 관련 예외만 감싸서 올림
             raise RuntimeError(f"DB fetch_ids error: {e}") from e
 
-    def select_fuzzed_request_with_original_id(
+    def select_fuzzed_request_with_original_id_all(
         self, original_request_id: int
     ) -> Dict[str, Any]:
         """original_request_id->
-        fuzzed_request, fuzzed_headers, fuzzed_query_params, fuzzed_requests_body 읽기
+        fuzzed_request Table에서 해당 original_request_id에 매칭되는 모든 fuzzed_request를 읽어옴
+        이후 사용할 때에는 param_id를 통해 특정 페이로드를 선택할 수 있도록 함
         """
         with self._cur() as c:
             # fuzzed_request
@@ -222,33 +223,10 @@ class DBReader:
                 "SELECT * FROM fuzzed_request WHERE original_request_id=%s",
                 (original_request_id,),
             )
-            meta = c.fetchone()
-            if not meta:
+
+            rows = c.fetchall()
+            if not rows:
                 raise KeyError(
                     f"fuzzed_request with original_request_id {original_request_id} not found",
                 )
-
-            # fuzzed_headers
-            c.execute(
-                "SELECT key, value FROM fuzzed_request_headers "
-                "WHERE fuzzed_request_id=%s ORDER BY id",
-                (meta["id"],),
-            )
-            headers = c.fetchall()
-
-            # fuzzed_query_params
-            c.execute(
-                "SELECT key, value, source FROM fuzzed_query_params "
-                "WHERE fuzzed_request_id=%s ORDER BY id",
-                (meta["id"],),
-            )
-            params = c.fetchall()
-
-            # fuzzed_request_body
-            c.execute(
-                "SELECT * FROM fuzzed_request_body WHERE fuzzed_request_id=%s",
-                (meta["id"],),
-            )
-            body = c.fetchone()
-
-        return {"meta": meta, "headers": headers, "query_params": params, "body": body}
+            return [{"meta": row} for row in rows]
