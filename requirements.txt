@@ -1,0 +1,12 @@
+psycopg2-binary==2.9.10
+python-dotenv==1.1.0
+celery==5.5.2
+redis==6.2.0
+requests==2.32.3
+mitmproxy==12.1.1
+selenium==4.32.0
+wad==0.4.6
+chardet==5.2.0
+flask==3.0.3
+beautifulsoup4==4.13.4
+quickjs==1.19.4

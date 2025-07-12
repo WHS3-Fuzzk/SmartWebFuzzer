@@ -1,0 +1,25 @@
+name: Lint Check
+
+on:
+  push:
+    branches: ["main", "develop", "feat/**"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r dev-requirements.txt
+          pip install -r requirements.txt
+      - name: Run black
+        run: black --check .
+      - name: Run pylint
+        run: pylint --disable=fixme src/

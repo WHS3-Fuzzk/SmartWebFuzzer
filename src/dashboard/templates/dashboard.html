@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>스마트 웹 퍼징 대시보드</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script defer src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</head>
+<body>
+    <h2>
+        🛡️ 스마트 웹 퍼징 대시보드
+        <span id="refresh-timer" style="font-size: 0.75em; margin-left: 12px; color: #555;"></span>
+    </h2>
+    <div class="container">
+        <!-- 왼쪽 : 원본 요청 -->
+        <div class="column">
+            <div class="section-title" id="original-request-title">📦 원본 요청 목록</div>
+            <div id="original-request-list"></div>
+
+            <div class="section-title">📝 원본 요청 본문</div>
+            <textarea id="request-body" readonly></textarea>
+
+            <div class="section-title">📬 원본 응답 본문</div>
+            <textarea id="response-body" readonly></textarea>
+        </div>
+
+        <!-- 가운데 : 퍼징 요청 및 응답 -->
+        <div class="column">
+            <div class="section-title" id="fuzz-request-title">📨 퍼징 요청 선택</div>
+            <div id="fuzz-request-list"></div>
+
+            <div class="section-title">📤 퍼징 요청 본문</div>
+            <textarea id="fuzz-body" readonly></textarea>
+
+            <div class="section-title">📥 퍼징 응답 본문</div>
+            <textarea id="fuzz-response" readonly></textarea>
+        </div>
+
+        <!-- 오른쪽 : 분석 결과 -->
+        <div class="column">
+            <div class="section-title">📊 취약점 분석 결과</div>
+            <textarea id="analysis-result" readonly></textarea>
+        </div>
+    </div>
+</body>
+</html>
