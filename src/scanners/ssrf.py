@@ -4,6 +4,7 @@
 import re
 import json
 import time
+import copy
 from datetime import datetime
 from typing import Any, Dict, Iterable, List
 from celery.result import AsyncResult
@@ -129,7 +130,7 @@ class SSRFScanner(BaseScanner):
 
         for payload in payloads:
             # 원본 요청을 복사
-            fuzzed_request = request.copy()
+            fuzzed_request = copy.deepcopy(request)
 
             # 쿼리 파라미터에 페이로드 주입
             if fuzzed_request["query_params"]:

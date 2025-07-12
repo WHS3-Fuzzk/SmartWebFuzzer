@@ -11,6 +11,7 @@
 
 
 import time
+import copy
 from datetime import datetime
 from typing import Any, Dict, Iterable, List
 from celery.result import AsyncResult
@@ -68,7 +69,7 @@ class ExampleScanner(BaseScanner):
             new_query_params[i]["value"] = payload
 
             # 변조된 RequestData 생성
-            fuzzing_request = request.copy()
+            fuzzing_request = copy.deepcopy(request)
             fuzzing_request["query_params"] = new_query_params
             # 변조 정보 기록 (RequestData에 없는 필드는 따로 관리 필요)
             fuzzing_request["extra"] = {
