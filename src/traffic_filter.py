@@ -321,8 +321,7 @@ def response(flow: http.HTTPFlow) -> None:
 
     # Stored XSS 분석
     # print(f"[BEFORE_STORED_XSS]{response_dict}")
-    findings = analyze_stored_xss_flow(response_dict)
-    print(f"[S_XSS] Stored XSS 분석 결과: {findings}")
+    analyze_stored_xss_flow(response_dict)
 
     if is_duplicated_by_flow(flow, mode="response"):
         return
