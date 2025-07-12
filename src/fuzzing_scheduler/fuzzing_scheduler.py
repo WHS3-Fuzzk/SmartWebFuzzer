@@ -232,9 +232,8 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
 def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
     """RequestData 객체를 requests.request에 필요한 인자 형태로 변환"""
     is_http = request_data["meta"]["is_http"]
-    scheme = "http://"
-    if is_http:
-        scheme = "http://" if is_http == 1 else "https://"
+    scheme = "http://" if is_http == 1 else "https://"
+
     method = request_data["meta"]["method"]
     url = f"{scheme}{request_data['meta']['domain']}{request_data['meta']['path']}"
     headers = {h["key"]: h["value"] for h in (request_data.get("headers") or [])}
