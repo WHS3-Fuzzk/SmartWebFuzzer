@@ -6,7 +6,7 @@ Stored XSS 취약점 스캐너 모듈입니다.
 
 import urllib.parse
 
-# import json
+import json
 import copy
 from typing import Any, Dict, Iterable, List
 from datetime import datetime
@@ -115,6 +115,36 @@ class StoredXSS(BaseScanner):
                 print("------------------------")
 
                 yield new_request
+        elif "application/json" in content_type:
+            try:
+                params = json.loads(raw_body)
+            except Exception as e:
+                print(f"JSON 파싱 오류: {e}")
+                return
+            if isinstance(params, dict):
+                for param_id, k in enumerate(params.keys()):
+                    payload = self.get_payload(request_id, param_id)
+                    new_params = params.copy()
+                    new_params[k] = payload
+                    new_body_str = json.dumps(new_params, ensure_ascii=False)
+                    new_content_length = str(len(new_body_str.encode("utf-8")))
+                    new_request = copy.deepcopy(request)
+                    new_request["headers"] = [h.copy() for h in headers]
+                    for h in new_request["headers"]:
+                        if h["key"].lower() == "content-length":
+                            h["value"] = new_content_length
+                    new_request["body"] = body.copy()
+                    new_request["body"]["body"] = new_body_str
+                    new_request["body"]["content_length"] = int(new_content_length)
+                    new_request["extra"] = {
+                        "fuzzed_param": k,
+                        "payload": payload,
+                        "param_id": param_id,
+                        "type": "stored_xss",
+                    }
+                    print(f"{new_request}")
+                    print("------------------------")
+                    yield new_request
         # TODO: json, multipart/form-data 등은 추후 구현 필요
 
     def run(
