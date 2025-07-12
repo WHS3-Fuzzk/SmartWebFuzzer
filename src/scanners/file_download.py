@@ -10,6 +10,7 @@ FileDownloadScanner: 파일 다운로드 취약점 탐지 스캐너
 
 # 1. 표준 라이브러리
 from datetime import datetime
+import glob
 import hashlib
 import json
 import copy
@@ -46,6 +47,41 @@ def _body_hash(data: Optional[bytes]) -> str:
     if data is None:
         return ""
     return hashlib.md5(data).hexdigest()
+
+
+def get_latest_downloaded_file(download_dir: str) -> Optional[str]:
+    try:
+        files = glob.glob(os.path.join(download_dir, "*"))
+        files = [f for f in files if os.path.isfile(f)]
+        if not files:
+            return None
+        latest_file = max(files, key=os.path.getctime)
+        return latest_file
+    except Exception as e:
+        print(f"[ERROR] 최신 파일 탐색 실패: {e}")
+        return None
+
+
+def is_same_file_by_name_and_size(file1: str, file2: str) -> bool:
+    try:
+        name1 = os.path.basename(file1)
+        name2 = os.path.basename(file2)
+
+        size1 = os.path.getsize(file1)
+        size2 = os.path.getsize(file2)
+
+        name_contained = name1 in name2 or name2 in name1
+        same_size = size1 == size2
+
+        print(
+            f"[DEBUG] 파일 이름 비교: '{name1}' in '{name2}' or vice versa → {name_contained}"
+        )
+        print(f"[DEBUG] 파일 크기 비교: {size1} vs {size2} → {same_size}")
+
+        return name_contained and same_size
+    except Exception as e:
+        print(f"[ERROR] 파일 이름/크기 비교 실패: {e}")
+        return False
 
 
 class FileDownloadScanner(BaseScanner):
@@ -103,6 +139,26 @@ class FileDownloadScanner(BaseScanner):
             }
             mutated["meta"]["path"] = new_path
 
+            # ✅ 요청 본문 설정 (Body 타입에 맞게 구성)
+            body_payload = json.dumps(
+                {
+                    "fuzzing_stage": stage,
+                    "fuzzing_payload": payload,
+                    "target_param_keys": list(param_key_set),
+                }
+            )
+            body_bytes = body_payload.encode("utf-8")
+
+            mutated["body"] = {
+                "id": 0,
+                "request_id": self.request_id,
+                "content_type": "application/json",
+                "charset": "utf-8",
+                "content_length": len(body_bytes),
+                "content_encoding": "identity",
+                "body": body_payload,
+            }
+
             print(f"[GEN] STAGE {stage} → payload: {payload}, path: {new_path}")
             yield mutated
 
@@ -148,9 +204,22 @@ class FileDownloadScanner(BaseScanner):
 
         print("[OK] Content-Disposition 있음 → 퍼징 진행")
 
+        # ✅ 정상 응답 바디 추출
         normal_body = normal_response.get("body", b"")
         if isinstance(normal_body, str):
             normal_body = normal_body.encode("utf-8", errors="replace")
+
+        # ✅ 정상 응답 파일 저장
+        try:
+            download_dir = os.path.expanduser("~/Downloads")
+            os.makedirs(download_dir, exist_ok=True)
+            file_path = os.path.join(download_dir, f"original_{self.request_id}.bin")
+            with open(file_path, "wb") as f:
+                f.write(normal_body)
+            print(f"[DEBUG] 정상 응답 파일 저장됨 → {file_path}")
+        except Exception as e:
+            print(f"[ERROR] 정상 응답 파일 저장 실패: {e}")
+            return []
 
         print(
             f"[DEBUG] 정상 응답 해시: {_body_hash(normal_body)} / 길이: {len(normal_body)}"
@@ -166,17 +235,13 @@ class FileDownloadScanner(BaseScanner):
             )
             results.extend(stage_results)
 
-            # ✅ STAGE 1 실패 → STAGE 2로 진행
             if stage == 1 and not stage_success:
                 print(f"[!] STAGE 1에서 유의미한 결과 없음 → 이후 단계 진행")
                 continue
 
-            # ✅ STAGE 2에서 성공 → 더 이상 퍼징할 필요 없음 → 종료
             if stage == 2 and stage_success:
                 print(f"[+] STAGE 2에서 파일 다운로드 성공 → STAGE 3 생략")
                 break
-
-            # STAGE 3은 무조건 끝까지 진행
 
         return results
 
@@ -196,7 +261,6 @@ class FileDownloadScanner(BaseScanner):
             print(f"[RUN] 퍼징 요청 전송 준비 → payload: {payload}")
             print(f"[RUN] 요청 URL: {url}")
 
-            # 퍼징 응답 수신 후
             try:
                 fuzz_response = send_fuzz_request(fuzz_request)
                 print(
@@ -206,87 +270,58 @@ class FileDownloadScanner(BaseScanner):
                 print(f"[ERROR] 퍼징 요청 실패 (예외: {type(e).__name__}): {e}")
                 continue
 
-            # ⬇️ 비교 코드 시작
+            # 비교 및 성공 여부 판단
+            is_same = False  # STAGE 1용
+
             print(f"[DEBUG] 현재 stage 값: {stage}")
             if stage == 1:
-                print(f"[DEBUG] STAGE 1 → 비교 로직 진입함")
+                print(f"[DEBUG] STAGE 1 → 파일 다운로드 기반 비교 진입함")
 
-                fuzz_body = fuzz_response.get("body", b"")
-
-                if not normal_body:
-                    print(f"[WARN] 정상 응답 본문이 비어 있음 → 비교 불가")
-                if not fuzz_body:
-                    print(f"[WARN] 퍼징 응답 본문이 비어 있음 → payload: {payload}")
-
-                if fuzz_body is None:
-                    print(
-                        f"[WARN] fuzz_response body가 None입니다 → payload: {payload}"
-                    )
-                    continue
-
-                if isinstance(fuzz_body, str):
-                    fuzz_body = fuzz_body.encode("utf-8", errors="replace")
-
-                print(f"[DEBUG] normal_body hash: {_body_hash(normal_body)}")
-                print(f"[DEBUG] fuzz_body hash: {_body_hash(fuzz_body)}")
-
-                if not normal_body:
-                    print(f"[WARN] 정상 응답 본문이 비어 있음 → 비교 불가")
-                if not fuzz_body:
-                    print(f"[WARN] fuzz 응답 본문이 비어 있음 → payload: {payload}")
-
-                print(f"[DEBUG] normal_body hash: {_body_hash(normal_body)}")
-                print(f"[DEBUG] fuzz_body hash: {_body_hash(fuzz_body)}")
-
-                if _body_hash(fuzz_body) == _body_hash(normal_body):
-                    print(f"[MATCH] 동일 응답 바디 (해시 기준) → payload: {payload}")
-                    success = True
-                else:
-                    print(f"[DIFF] 응답 바디 달라짐 → payload: {payload}")
-
-                print(
-                    f"[DEBUG] 퍼징 응답 바디 내용 (디코딩): {fuzz_body.decode(errors='replace')}"
+                download_dir = os.path.expanduser("~/Downloads")
+                original_file_path = os.path.join(
+                    download_dir, f"original_{self.request_id}.bin"
                 )
 
-            elif stage == 2:
-                # Stage 2: 파일 다운로드만 성공하면 취약 가능성 있다고 판단
+                if not os.path.exists(original_file_path):
+                    print(f"[ERROR] 정상 파일 없음 → {original_file_path}")
+                    continue
+
+                print(f"[INFO] 최신 다운로드 파일 비교 중 → 기준: {original_file_path}")
+                time.sleep(2)
+
+                latest_file = get_latest_downloaded_file(download_dir)
+                if not latest_file:
+                    print(f"[WARN] 다운로드된 파일을 찾을 수 없음")
+                    continue
+
+                is_same = is_same_file_by_name_and_size(original_file_path, latest_file)
+                if is_same:
+                    print(f"[MATCH] 동일 파일 다운로드됨 → payload: {payload}")
+                    success = True
+                else:
+                    print(f"[DIFF] 다운로드된 파일이 다름 → payload: {payload}")
+
+            elif stage in [2, 3]:
                 fuzz_body = fuzz_response.get("body", b"")
-
-                if fuzz_body and isinstance(fuzz_body, str):
+                if isinstance(fuzz_body, str):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
-
                 if fuzz_body and len(fuzz_body) > 0:
-                    fuzz_body_hash = _body_hash(fuzz_body)
-                    print(f"[DEBUG] STAGE 2 → 다운로드 응답 해시: {fuzz_body_hash}")
+                    print(f"[DEBUG] STAGE {stage} → 다운로드 응답 감지됨")
                     success = True
 
-            elif stage == 3:
-                # Stage 3: 이중 인코딩 우회 시도 → 다운로드 응답이 있으면 success
-                fuzz_body = fuzz_response.get("body", b"")
-
-                if fuzz_body and isinstance(fuzz_body, str):
-                    fuzz_body = fuzz_body.encode("utf-8", errors="replace")
-
-                if fuzz_body and len(fuzz_body) > 0:
-                    fuzz_body_hash = _body_hash(fuzz_body)
-                    print(f"[DEBUG] STAGE 3 → 다운로드 응답 해시: {fuzz_body_hash}")
-                    success = True
-
+            # Celery 분석 요청
             result = {}
             try:
+                extra = {
+                    **fuzz_request.get("extra", {}),
+                    "is_same_file": is_same,  # ✅ STAGE 1 판단용
+                }
+
                 async_result = analyze_file_download_response.apply_async(
-                    args=[
-                        {
-                            **fuzz_response,
-                            "extra": fuzz_request.get("extra", {}),
-                            "normal_body_hash": _body_hash(normal_body),
-                        }
-                    ]
+                    args=[{**fuzz_response, "extra": extra}]
                 )
                 result = async_result.get()
                 print(f"[DEBUG] Celery 분석 결과 수신 완료 → {result}")
-
-                result = async_result.get()
             except (CeleryTimeoutError, TaskRevokedError) as e:
                 print(f"[!] 분석 태스크 시간 초과 또는 취소됨 → payload: {payload}")
                 result = {}
@@ -358,46 +393,57 @@ class FileDownloadScanner(BaseScanner):
 
 @celery_app.task(name="tasks.analyze_file_download_response", queue="analyze_response")
 def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
-    import hashlib
-
     headers = response.get("headers", {}) or {}
-    body = response.get("body", "")
     extra = response.get("extra", {}) or {}
 
     scan_url = response.get("url", "unknown")
     payload = extra.get("payload", "")
     stage = extra.get("stage", 0)
-
-    # decode body if needed
-    if isinstance(body, bytes):
-        try:
-            body = body.decode("utf-8", errors="replace")
-        except UnicodeDecodeError:
-            body = str(body)
-
-    disp = headers.get("Content-Disposition", "").lower()
-
-    # 기본 응답 정보
-    normal_body_hash = response.get("normal_body_hash", "")
-    fuzz_body_hash = hashlib.md5(body.encode("utf-8", errors="replace")).hexdigest()
+    is_same_file = extra.get("is_same_file", False)  # ✅ STAGE 2~3에도 사용 가능
 
     evidence = None
     success = False
 
-    # 분석 로직
-    if "attachment" not in disp:
-        evidence = "Content-Disposition 없음"
-    elif "<html" in body.lower():
-        evidence = "응답이 HTML 페이지입니다."
-    elif stage == 1:
-        if fuzz_body_hash == normal_body_hash:
-            evidence = f"1단계: 경로 조작 '{payload}' 사용 시 동일 파일 다운로드됨"
+    disp = headers.get("Content-Disposition", "").lower()
+
+    if stage == 1:
+        if is_same_file:
             success = True
+            evidence = f"1단계: 경로 조작 '{payload}' 사용 시 동일 파일 다운로드됨. 취약점 가능성 ⬆️"
         else:
-            evidence = f"1단계: 경로 조작 '{payload}' 사용 시 다른 응답 반환됨"
-    elif stage > 1:
-        evidence = f"{stage}단계: Content-Disposition 포함된 응답 수신"
-        success = True
+            evidence = (
+                f"1단계: 경로 조작 '{payload}' 사용 시 다른 응답 반환됨 (파일 다름)"
+            )
+
+    elif stage == 2:
+        if is_same_file:
+            success = True
+            evidence = f"2단계: 상위 경로 우회('{payload}') 시 동일 파일 다운로드됨 → 취약점 가능성 ⬆️"
+        else:
+            # 동일하지 않지만 다운로드는 되었음 (즉, 상위 디렉터리 접근된 것일 수 있음)
+            body = response.get("body", b"")
+            if isinstance(body, str):
+                body = body.encode("utf-8", errors="replace")
+
+            if body and len(body) > 0:
+                success = True
+                evidence = f"2단계: 상위 디렉터리로 접근하여 다른 파일 다운로드됨 → 취약점 가능성 ⬆️"
+            else:
+                evidence = f"2단계: 다운로드 실패 또는 응답 없음 → 취약 가능성 ⬇️"
+
+    elif stage == 3:
+        body = response.get("body", b"")
+        if isinstance(body, str):
+            body = body.encode("utf-8", errors="replace")
+        if "attachment" in disp:
+            success = True
+            evidence = f"3단계: Content-Disposition 포함된 응답 수신"
+        elif len(body) > 0:
+            success = True
+            evidence = f"3단계: Content-Disposition 없이도 다운로드 응답 수신됨"
+
+    if "attachment" not in disp:
+        print(f"[WARN] Content-Disposition 없음 → stage {stage}, url: {scan_url}")
 
     return {
         "scan_url": scan_url,
