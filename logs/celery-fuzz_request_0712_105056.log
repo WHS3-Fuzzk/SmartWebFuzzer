@@ -1,0 +1,258 @@
+[2025-07-12 10:50:57,855: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-07-12 10:50:57,862: INFO/MainProcess] mingle: searching for neighbors
+[2025-07-12 10:50:58,463: INFO/SpawnPoolWorker-5] child process 4028 calling self.run()
+[2025-07-12 10:50:58,512: INFO/SpawnPoolWorker-3] child process 12968 calling self.run()
+[2025-07-12 10:50:58,522: INFO/SpawnPoolWorker-2] child process 5072 calling self.run()
+[2025-07-12 10:50:58,533: INFO/SpawnPoolWorker-4] child process 21624 calling self.run()
+[2025-07-12 10:50:58,538: INFO/SpawnPoolWorker-1] child process 22208 calling self.run()
+[2025-07-12 10:50:58,575: INFO/SpawnPoolWorker-6] child process 14268 calling self.run()
+[2025-07-12 10:50:59,030: INFO/MainProcess] mingle: all alone
+[2025-07-12 10:50:59,140: INFO/MainProcess] worker-fuzz_request@LAPTOP-AIE09A06 ready.
+[2025-07-12 10:51:20,960: INFO/MainProcess] Task tasks.send_fuzz_request[753e84c2-8a09-4894-b553-008d19b9ba03] received
+[2025-07-12 10:51:20,968: INFO/MainProcess] Task tasks.send_fuzz_request[e0fdeaa4-c9fe-4177-aa60-8b9a56ec73c0] received
+[2025-07-12 10:51:20,983: INFO/MainProcess] Task tasks.send_fuzz_request[e101c069-bdc2-49bd-83d2-6a9e41b2cdde] received
+[2025-07-12 10:51:21,312: INFO/SpawnPoolWorker-3] Task tasks.send_fuzz_request[e101c069-bdc2-49bd-83d2-6a9e41b2cdde] succeeded in 0.32799999999997453s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:21 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '319', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: \'"fake=whs3fuzzk><whs3fuzzk></p>
+    
+</body>
+</html>', 'elapsed_time': 0.010175, 'http_version': 11, 'url': 'http://127.0.0.1:8082/search?q=%27%22fake%3Dwhs3fuzzk%3E%3Cwhs3fuzzk%3E', 'body': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: \'"fake=whs3fuzzk><whs3fuzzk></p>
+    
+</body>
+</html>', 'timestamp': datetime.datetime(2025, 7, 12, 10, 51, 21, 5384), 'cookies', ...}
+[2025-07-12 10:51:21,390: INFO/SpawnPoolWorker-5] Task tasks.send_fuzz_request[e0fdeaa4-c9fe-4177-aa60-8b9a56ec73c0] succeeded in 0.42200000000002547s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:20 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '319', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: \'"fake=whs3fuzzk><whs3fuzzk></p>
+    
+</body>
+</html>', 'elapsed_time': 0.016317, 'http_version': 11, 'url': 'http://127.0.0.1:8082/search?q=%27%22fake%3Dwhs3fuzzk%3E%3Cwhs3fuzzk%3E', 'body': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: \'"fake=whs3fuzzk><whs3fuzzk></p>
+    
+</body>
+</html>', 'timestamp': datetime.datetime(2025, 7, 12, 10, 51, 20, 997449), 'cookie...', ...}
+[2025-07-12 10:51:21,392: INFO/SpawnPoolWorker-4] Task tasks.send_fuzz_request[753e84c2-8a09-4894-b553-008d19b9ba03] succeeded in 0.42200000000002547s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:20 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '316', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: <script>alert(1)</script></p>
+    
+</body>
+</html>', 'elapsed_time': 0.018761, 'http_version': 11, 'url': 'http://127.0.0.1:8082/search?q=%3Cscript%3Ealert%281%29%3C%2Fscript%3E', 'body': '<!DOCTYPE html>
+<html>
+<head><title>Reflected XSS</title></head>
+<body>
+    <h2>Reflected XSS 테스트</h2>
+    <form method="get">
+        검색어: <input type="text" name="q">
+        <button type="submit">검색</button>
+    </form>
+    
+    <p>검색 결과: <script>alert(1)</script></p>
+    
+</body>
+</html>', 'timestamp': datetime.datetime(2025, 7, 12, 10, 51, 20, 995427), 'cookies': {}, , ...}
+[2025-07-12 10:51:56,829: INFO/MainProcess] Task tasks.send_fuzz_request[d71e3ee8-325c-4d7f-be10-26453bc12a9e] received
+[2025-07-12 10:51:56,837: INFO/MainProcess] Task tasks.send_fuzz_request[c149751b-8168-4baa-885c-2bb2a6ce964e] received
+[2025-07-12 10:51:56,894: INFO/MainProcess] Task tasks.send_fuzz_request[48b276c9-720d-48df-8790-7769bc8b4240] received
+[2025-07-12 10:51:57,308: INFO/SpawnPoolWorker-2] Task tasks.send_fuzz_request[48b276c9-720d-48df-8790-7769bc8b4240] succeeded in 0.4219999999999686s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:56 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '1096', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DOM XSS</title>
+</head>
+
+<body>
+    <h2>DOM XSS 테스트</h2>
+    <input id="input" placeholder="메시지를 입력하세요">
+    <button onclick="run()">실행</button>
+    <div id="output"></div>
+    <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        window.onload = function () {
+            var msg = getQueryParam(\'msg\') || "default"; // 여기 기본값
+            if (msg) {
+                document.getElementById(\'input\').value = msg;
+                document.getElementById(\'output\').innerHTML = msg; // 취약한 부분
+            }
+        };
+
+        function run() {
+            var msg = document.getElementById("input").value;
+            // 현재 페이지를 msg...', ...}
+[2025-07-12 10:51:57,351: INFO/SpawnPoolWorker-1] Task tasks.send_fuzz_request[d71e3ee8-325c-4d7f-be10-26453bc12a9e] succeeded in 0.5149999999999864s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:56 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '1096', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DOM XSS</title>
+</head>
+
+<body>
+    <h2>DOM XSS 테스트</h2>
+    <input id="input" placeholder="메시지를 입력하세요">
+    <button onclick="run()">실행</button>
+    <div id="output"></div>
+    <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        window.onload = function () {
+            var msg = getQueryParam(\'msg\') || "default"; // 여기 기본값
+            if (msg) {
+                document.getElementById(\'input\').value = msg;
+                document.getElementById(\'output\').innerHTML = msg; // 취약한 부분
+            }
+        };
+
+        function run() {
+            var msg = document.getElementById("input").value;
+            // 현재 페이지를 msg...', ...}
+[2025-07-12 10:51:57,419: INFO/SpawnPoolWorker-6] Task tasks.send_fuzz_request[c149751b-8168-4baa-885c-2bb2a6ce964e] succeeded in 0.5780000000000314s: {'status_code': 200, 'headers': {'Server': 'Werkzeug/3.1.3 Python/3.13.3', 'Date': 'Sat, 12 Jul 2025 01:51:56 GMT', 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '1096', 'Connection': 'close'}, 'text': '<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DOM XSS</title>
+</head>
+
+<body>
+    <h2>DOM XSS 테스트</h2>
+    <input id="input" placeholder="메시지를 입력하세요">
+    <button onclick="run()">실행</button>
+    <div id="output"></div>
+    <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        window.onload = function () {
+            var msg = getQueryParam(\'msg\') || "default"; // 여기 기본값
+            if (msg) {
+                document.getElementById(\'input\').value = msg;
+                document.getElementById(\'output\').innerHTML = msg; // 취약한 부분
+            }
+        };
+
+        function run() {
+            var msg = document.getElementById("input").value;
+            // 현재 페이지를 msg...', ...}
+[2025-07-12 11:03:34,161: WARNING/MainProcess] Exception ignored in atexit callback
+[2025-07-12 11:03:34,162: WARNING/MainProcess] : 
+[2025-07-12 11:03:34,162: WARNING/MainProcess] <function _exit_function at 0x0000020F1B517240>
+[2025-07-12 11:03:34,162: WARNING/MainProcess] Traceback (most recent call last):
+[2025-07-12 11:03:34,163: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 334, in _exit_function
+[2025-07-12 11:03:34,165: WARNING/MainProcess]     
+[2025-07-12 11:03:34,165: WARNING/MainProcess] _run_finalizers(0)
+[2025-07-12 11:03:34,165: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 300, in _run_finalizers
+[2025-07-12 11:03:34,167: WARNING/MainProcess]     
+[2025-07-12 11:03:34,167: WARNING/MainProcess] finalizer()
+[2025-07-12 11:03:34,167: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 224, in __call__
+[2025-07-12 11:03:34,168: WARNING/MainProcess]     
+[2025-07-12 11:03:34,168: WARNING/MainProcess] res = self._callback(*self._args, **self._kwargs)
+[2025-07-12 11:03:34,168: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,170: WARNING/MainProcess]  
+[2025-07-12 11:03:34,170: WARNING/MainProcess]  
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,175: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,175: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,175: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,175: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,176: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\site-packages\billiard\pool.py", line 1683, in _terminate_pool
+[2025-07-12 11:03:34,178: WARNING/MainProcess]     
+[2025-07-12 11:03:34,178: WARNING/MainProcess] timeout_handler.stop(TIMEOUT_MAX)
+[2025-07-12 11:03:34,178: WARNING/MainProcess] celery.exceptions
+[2025-07-12 11:03:34,178: WARNING/MainProcess] .
+[2025-07-12 11:03:34,178: WARNING/MainProcess] WorkerTerminate
+[2025-07-12 11:03:34,179: WARNING/MainProcess] : 
+[2025-07-12 11:03:34,179: WARNING/MainProcess] 1

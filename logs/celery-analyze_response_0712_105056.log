@@ -1,0 +1,141 @@
+[2025-07-12 10:50:57,854: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-07-12 10:50:57,944: INFO/MainProcess] mingle: searching for neighbors
+[2025-07-12 10:50:58,393: INFO/SpawnPoolWorker-3] child process 18408 calling self.run()
+[2025-07-12 10:50:58,443: INFO/SpawnPoolWorker-1] child process 22312 calling self.run()
+[2025-07-12 10:50:58,497: INFO/SpawnPoolWorker-2] child process 23056 calling self.run()
+[2025-07-12 10:50:58,513: INFO/SpawnPoolWorker-4] child process 21692 calling self.run()
+[2025-07-12 10:50:59,027: INFO/MainProcess] mingle: all alone
+[2025-07-12 10:50:59,106: INFO/MainProcess] worker-analyze_response@LAPTOP-AIE09A06 ready.
+[2025-07-12 10:51:21,377: INFO/MainProcess] Task tasks.analyze_response_example[df79b996-b8e7-4e7e-b3bc-13cdf4c2261d] received
+[2025-07-12 10:51:21,383: INFO/MainProcess] Task tasks.analyze_response_reflected_xss[268fea94-dc3f-45fe-b785-d7b1e37309ce] received
+[2025-07-12 10:51:21,398: WARNING/SpawnPoolWorker-3] [!] 취약점 발견! URL: http://127.0.0.1:8082/search?q=%27%22fake%3Dwhs3fuzzk%3E%3Cwhs3fuzzk%3E
+[2025-07-12 10:51:21,592: INFO/SpawnPoolWorker-1] Task tasks.analyze_response_example[df79b996-b8e7-4e7e-b3bc-13cdf4c2261d] succeeded in 0.2189999999999941s: {'payload': '<script>alert(1)</script>', 'evidence': '응답에 페이로드가 반영됨'}
+[2025-07-12 10:51:21,606: INFO/SpawnPoolWorker-3] Task tasks.analyze_response_reflected_xss[268fea94-dc3f-45fe-b785-d7b1e37309ce] succeeded in 0.2189999999999941s: {'payload': '\'"fake=whs3fuzzk><whs3fuzzk>', 'evidence': '응답에 페이로드가 반영됨', 'url': 'http://127.0.0.1:8082/search?q=%27%22fake%3Dwhs3fuzzk%3E%3Cwhs3fuzzk%3E', 'attribute_check': ['=== <whs3fuzzk> 태그가 생성됨 → 모든 태그에서 속성 검사 시작 ===', '[커스텀 태그 발견] <whs3fuzzk> → <whs3fuzzk></whs3fuzzk>', '  - 부모 태그: <p> → <p>검색 결과: \'"fake=whs3fuzzk&gt;<whs3fuzzk></whs3fuzzk></p>', ''], 'script_check': ['[+] <script> 태그 개수: 0', '❌ <script> 태그가 아예 없습니다!']}
+[2025-07-12 10:51:57,381: INFO/MainProcess] Task tasks.analyze_response_example[fdff6a95-e311-4aea-90f3-469862039d48] received
+[2025-07-12 10:51:57,387: INFO/MainProcess] Task tasks.analyze_response_reflected_xss[4edd0be6-a730-4698-bc0c-0495b36fa131] received
+[2025-07-12 10:51:57,390: WARNING/SpawnPoolWorker-2] [*] 페이로드가 응답에 없음
+[2025-07-12 10:51:57,577: INFO/SpawnPoolWorker-4] Task tasks.analyze_response_example[fdff6a95-e311-4aea-90f3-469862039d48] succeeded in 0.20400000000000773s: {}
+[2025-07-12 10:51:57,590: INFO/SpawnPoolWorker-2] Task tasks.analyze_response_reflected_xss[4edd0be6-a730-4698-bc0c-0495b36fa131] succeeded in 0.20299999999997453s: {}
+[2025-07-12 11:03:34,161: WARNING/MainProcess] Exception ignored in atexit callback
+[2025-07-12 11:03:34,162: WARNING/MainProcess] : 
+[2025-07-12 11:03:34,162: WARNING/MainProcess] <function _exit_function at 0x000002783B6E7240>
+[2025-07-12 11:03:34,162: WARNING/MainProcess] Traceback (most recent call last):
+[2025-07-12 11:03:34,162: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 334, in _exit_function
+[2025-07-12 11:03:34,165: WARNING/MainProcess]     
+[2025-07-12 11:03:34,165: WARNING/MainProcess] _run_finalizers(0)
+[2025-07-12 11:03:34,165: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 300, in _run_finalizers
+[2025-07-12 11:03:34,167: WARNING/MainProcess]     
+[2025-07-12 11:03:34,167: WARNING/MainProcess] finalizer()
+[2025-07-12 11:03:34,167: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\util.py", line 224, in __call__
+[2025-07-12 11:03:34,168: WARNING/MainProcess]     
+[2025-07-12 11:03:34,168: WARNING/MainProcess] res = self._callback(*self._args, **self._kwargs)
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,169: WARNING/MainProcess]  
+[2025-07-12 11:03:34,170: WARNING/MainProcess]  
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,170: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,171: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,172: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,173: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,174: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\site-packages\billiard\pool.py", line 1683, in _terminate_pool
+[2025-07-12 11:03:34,177: WARNING/MainProcess]     
+[2025-07-12 11:03:34,177: WARNING/MainProcess] timeout_handler.stop(TIMEOUT_MAX)
+[2025-07-12 11:03:34,177: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\site-packages\billiard\pool.py", line 524, in stop
+[2025-07-12 11:03:34,178: WARNING/MainProcess]     
+[2025-07-12 11:03:34,178: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1130, in join
+[2025-07-12 11:03:34,180: WARNING/MainProcess]     
+[2025-07-12 11:03:34,180: WARNING/MainProcess] self._wait_for_tstate_lock(timeout=max(timeout, 0))
+[2025-07-12 11:03:34,180: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1146, in _wait_for_tstate_lock
+[2025-07-12 11:03:34,182: WARNING/MainProcess]     
+[2025-07-12 11:03:34,182: WARNING/MainProcess] if lock.acquire(block, timeout):
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess]  
+[2025-07-12 11:03:34,182: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,182: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,182: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,183: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess] ^
+[2025-07-12 11:03:34,184: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\site-packages\celery\apps\worker.py", line 300, in _handle_request
+[2025-07-12 11:03:34,185: WARNING/MainProcess]     
+[2025-07-12 11:03:34,185: WARNING/MainProcess] callback(worker)
+[2025-07-12 11:03:34,186: WARNING/MainProcess]   File "C:\Users\foski\AppData\Local\Programs\Python\Python312\Lib\site-packages\celery\apps\worker.py", line 329, in on_hard_shutdown
+[2025-07-12 11:03:34,186: WARNING/MainProcess]     
+[2025-07-12 11:03:34,186: WARNING/MainProcess] raise WorkerTerminate(EX_FAILURE)
+[2025-07-12 11:03:34,186: WARNING/MainProcess] celery.exceptions
+[2025-07-12 11:03:34,186: WARNING/MainProcess] .
+[2025-07-12 11:03:34,186: WARNING/MainProcess] WorkerTerminate
+[2025-07-12 11:03:34,186: WARNING/MainProcess] : 
+[2025-07-12 11:03:34,186: WARNING/MainProcess] 1
