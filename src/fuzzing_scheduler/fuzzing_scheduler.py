@@ -47,6 +47,7 @@ celery_app = Celery(
         "scanners.ssrf",  # SQL Injection 스캐너 모듈
         "scanners.stored_xss",  # Stored XSS 스캐너 모듈
         "scanners.dom_xss",  # Dom XSS 스캐너 모듈
+        "scanners.file_download",   #File Download 스캐너
     ],
 )
 # celery_app.autodiscover_tasks(["scanners"])
