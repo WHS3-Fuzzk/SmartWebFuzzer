@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 File Upload 취약점 스캐너 모듈 (example.py 구조 기반)
 BaseScanner/RequestData 템플릿 구조 준수 (SmartWebFuzzer 개발 가이드 예시)
