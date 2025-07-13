@@ -363,7 +363,7 @@ def analyze_response_reflected_xss(response: dict) -> dict:
     payload = "'\"fake=whs3fuzzk><whs3fuzzk>"
     response_text = response.get("text", "")
 
-    if payload in response_text:
+    if "whs3fuzzk" in response_text:
         # 속성 검사
         attr_results = check_payload_in_attributes(response_text, payload)
         # 스크립트 내부 JS 검사
