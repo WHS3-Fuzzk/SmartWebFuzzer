@@ -1,6 +1,13 @@
 const refreshInterval = 10;
 let remainingTime = refreshInterval;
 let currentRequestId = null;
+let showOnlyFuzzed = false; // 퍼징된 요청만 표시할지 여부
+let showOnlyVulnerable = false; // 취약점이 있는 퍼징 요청만 표시할지 여부
+let selectedScanner = ""; // 선택된 스캐너 종류
+
+// 취약점 상태 캐시 (성능 최적화 및 중복 호출 방지)
+const vulnerabilityCache = new Map();
+const CACHE_DURATION = 5000; // 5초 캐시
 
 function updateTimerDisplay() {
     const timerSpan = document.getElementById("refresh-timer");
@@ -19,6 +26,16 @@ function startTimer() {
         if (remainingTime <= 0) {
             remainingTime = refreshInterval;
             fetchRequests(); // 전체 요청 새로고침
+            
+            // 현재 선택된 요청이 있으면 퍼징 요청 목록도 갱신
+            if (currentRequestId) {
+                refreshFuzzingListIcons();
+            }
+            
+            // 캐시 정리 (5분마다)
+            if (remainingTime % 300 === 0) {
+                clearVulnerabilityCache();
+            }
         }
         updateTimerDisplay();
     }, 1000);
@@ -39,17 +56,29 @@ async function fetchRequests() {
             return;
         }
 
+        // 필터링 적용
+        const filteredData = showOnlyFuzzed ? data.filter(req => req.has_fuzzing) : data;
+
+        if (filteredData.length === 0 && showOnlyFuzzed) {
+            listDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징된 요청이 없습니다.<br>퍼징이 완료될 때까지 기다려주세요.</p>";
+            titleDiv.textContent = "📦 원본 요청 목록";
+            clearAll();
+            return;
+        }
+
         // 섹션 제목에 개수 표시
         const countSpan = document.createElement("span");
         countSpan.style.color = "#7f8c8d";
         countSpan.style.fontSize = "12px";
         countSpan.style.fontWeight = "normal";
-        countSpan.textContent = `(${data.length}개)`;
+        countSpan.textContent = showOnlyFuzzed 
+            ? `(퍼징: ${filteredData.length}/${data.length}개)`
+            : `(${data.length}개)`;
         
         titleDiv.textContent = "📦 원본 요청 목록 ";
         titleDiv.appendChild(countSpan);
 
-        data.forEach((req, index) => {
+        filteredData.forEach((req, index) => {
             const div = document.createElement("div");
             div.classList.add("request-item");
             div.setAttribute("data-request-id", req.id);
@@ -114,8 +143,8 @@ async function fetchRequests() {
             listDiv.appendChild(div);
         });
 
-        // 선택된 요청이 목록에 없으면 초기화
-        if (currentRequestId && !data.some(r => r.id === currentRequestId)) {
+        // 선택된 요청이 필터링된 목록에 없으면 초기화
+        if (currentRequestId && !filteredData.some(r => r.id === currentRequestId)) {
             currentRequestId = null;
             clearAll();
         }
@@ -126,6 +155,205 @@ async function fetchRequests() {
         const titleDiv = document.getElementById("original-request-title");
         listDiv.innerHTML = "<p style='text-align: center; color: #e74c3c; padding: 20px;'>❌ 요청 목록을 불러올 수 없습니다.<br>서버 연결을 확인해주세요.</p>";
         titleDiv.textContent = "📦 원본 요청 목록";
+    }
+}
+
+function updateScannerOptions(fuzzingData) {
+    const scannerSelect = document.getElementById("scanner-filter");
+    const currentScanner = scannerSelect.value;
+    
+    // 기존 옵션 제거 (첫 번째 "전체 스캐너" 옵션 제외)
+    while (scannerSelect.children.length > 1) {
+        scannerSelect.removeChild(scannerSelect.lastChild);
+    }
+    
+    // 스캐너 목록 추출
+    const scanners = [...new Set(fuzzingData.map(fuzz => fuzz.scanner))].sort();
+    
+    scanners.forEach(scanner => {
+        const option = document.createElement("option");
+        option.value = scanner;
+        option.textContent = scanner.toUpperCase();
+        scannerSelect.appendChild(option);
+    });
+    
+    // 이전 선택값 복원 (가능한 경우)
+    if (scanners.includes(currentScanner)) {
+        scannerSelect.value = currentScanner;
+    }
+}
+
+async function filterFuzzingData(fuzzingData) {
+    const filteredData = [];
+    
+    for (const fuzz of fuzzingData) {
+        // 스캐너 필터 적용
+        if (selectedScanner && fuzz.scanner !== selectedScanner) {
+            continue;
+        }
+        
+        // 취약점 필터 적용
+        if (showOnlyVulnerable) {
+            try {
+                const vulnRes = await fetch(`/api/fuzzed_request/${fuzz.id}/vulnerabilities`);
+                const vulnData = await vulnRes.json();
+                
+                if (!vulnData.vulnerability_results || vulnData.vulnerability_results.length === 0) {
+                    continue;
+                }
+            } catch (err) {
+                console.error(`퍼징 요청 ${fuzz.id} 취약점 확인 오류:`, err);
+                continue;
+            }
+        }
+        
+        filteredData.push(fuzz);
+    }
+    
+    return filteredData;
+}
+
+async function checkVulnerabilityStatus(fuzzId) {
+    const now = Date.now();
+    const cacheKey = `vuln_${fuzzId}`;
+    
+    // 캐시 확인
+    if (vulnerabilityCache.has(cacheKey)) {
+        const cached = vulnerabilityCache.get(cacheKey);
+        if (now - cached.timestamp < CACHE_DURATION) {
+            return cached.hasVulnerability;
+        }
+    }
+    
+    try {
+        const vulnRes = await fetch(`/api/fuzzed_request/${fuzzId}/vulnerabilities`);
+        const vulnData = await vulnRes.json();
+        const hasVulnerability = vulnData.vulnerability_results && vulnData.vulnerability_results.length > 0;
+        
+        // 캐시에 저장
+        vulnerabilityCache.set(cacheKey, {
+            hasVulnerability,
+            timestamp: now
+        });
+        
+        return hasVulnerability;
+    } catch (err) {
+        console.error(`퍼징 요청 ${fuzzId} 취약점 확인 오류:`, err);
+        return false;
+    }
+}
+
+function createVulnerabilityIcon() {
+    const vulnerabilityIcon = document.createElement("span");
+    vulnerabilityIcon.style.marginLeft = "auto";
+    vulnerabilityIcon.style.fontSize = "14px";
+    vulnerabilityIcon.style.color = "#e74c3c";
+    vulnerabilityIcon.textContent = "🚨";
+    vulnerabilityIcon.title = "취약점 발견";
+    vulnerabilityIcon.className = "vulnerability-icon";
+    return vulnerabilityIcon;
+}
+
+async function updateItemVulnerabilityIcon(fuzzId, hasVulnerability = null) {
+    try {
+        // 취약점 상태가 제공되지 않은 경우 확인
+        if (hasVulnerability === null) {
+            hasVulnerability = await checkVulnerabilityStatus(fuzzId);
+        }
+        
+        // DOM 요소 찾기 (최대 3번 재시도)
+        let item = null;
+        let retries = 3;
+        
+        while (!item && retries > 0) {
+            item = document.querySelector(`#fuzz-request-list .request-item[data-fuzz-id="${fuzzId}"]`);
+            if (!item) {
+                await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 대기
+                retries--;
+            }
+        }
+        
+        if (!item) {
+            console.warn(`퍼징 요청 ${fuzzId}에 대한 DOM 요소를 찾을 수 없습니다.`);
+            return;
+        }
+        
+        const content = item.querySelector('.request-item-content');
+        if (!content) {
+            console.warn(`퍼징 요청 ${fuzzId}의 content 요소를 찾을 수 없습니다.`);
+            return;
+        }
+        
+        // 기존 취약점 아이콘 제거
+        const existingIcon = content.querySelector('.vulnerability-icon, span[title="취약점 발견"]');
+        if (existingIcon) {
+            existingIcon.remove();
+        }
+        
+        // 취약점이 있으면 아이콘 추가
+        if (hasVulnerability) {
+            const vulnerabilityIcon = createVulnerabilityIcon();
+            content.appendChild(vulnerabilityIcon);
+        }
+    } catch (err) {
+        console.error(`퍼징 요청 ${fuzzId} 아이콘 업데이트 오류:`, err);
+    }
+}
+
+async function addVulnerabilityIconsToList(fuzzingData) {
+    try {
+        // DOM이 완전히 렌더링될 때까지 짧은 지연
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // 모든 취약점 상태를 병렬로 확인 (캐시 활용)
+        const vulnerabilityPromises = fuzzingData.map(async (fuzz) => {
+            const hasVulnerability = await checkVulnerabilityStatus(fuzz.id);
+            return {
+                fuzzId: fuzz.id,
+                hasVulnerability
+            };
+        });
+        
+        // 모든 취약점 상태 확인이 완료될 때까지 대기
+        const vulnerabilityResults = await Promise.all(vulnerabilityPromises);
+        
+        // 각 항목의 아이콘을 순차적으로 업데이트 (안정성 향상)
+        for (const result of vulnerabilityResults) {
+            await updateItemVulnerabilityIcon(result.fuzzId, result.hasVulnerability);
+        }
+        
+        console.log(`퍼징 요청 ${fuzzingData.length}개의 취약점 아이콘 업데이트 완료`);
+    } catch (err) {
+        console.error("취약점 아이콘 일괄 추가 오류:", err);
+    }
+}
+
+async function refreshFuzzingListIcons() {
+    try {
+        // 현재 표시된 퍼징 요청 항목들을 가져옴
+        const fuzzItems = document.querySelectorAll("#fuzz-request-list .request-item");
+        const fuzzIds = Array.from(fuzzItems).map(item => item.getAttribute("data-fuzz-id")).filter(id => id);
+        
+        if (fuzzIds.length === 0) {
+            console.log("갱신할 퍼징 요청이 없습니다.");
+            return;
+        }
+        
+        console.log(`${fuzzIds.length}개 퍼징 요청의 취약점 아이콘을 갱신합니다.`);
+        
+        // 캐시를 무효화하여 최신 데이터 확인
+        fuzzIds.forEach(fuzzId => {
+            vulnerabilityCache.delete(`vuln_${fuzzId}`);
+        });
+        
+        // 각 항목의 아이콘을 순차적으로 업데이트
+        for (const fuzzId of fuzzIds) {
+            await updateItemVulnerabilityIcon(fuzzId);
+        }
+        
+        console.log("퍼징 요청 취약점 아이콘 갱신 완료");
+    } catch (err) {
+        console.error("퍼징 목록 아이콘 갱신 오류:", err);
     }
 }
 
@@ -142,20 +370,43 @@ async function loadRequestDetail(requestId) {
         fuzzListDiv.innerHTML = "";
 
         if (data.fuzzing.length > 0) {
+            // 스캐너 옵션 업데이트
+            updateScannerOptions(data.fuzzing);
+            
+            // 필터링 적용
+            const filteredData = await filterFuzzingData(data.fuzzing);
+            
             // 제목에 개수 표시
             const fuzzCountSpan = document.createElement("span");
             fuzzCountSpan.style.color = "#7f8c8d";
             fuzzCountSpan.style.fontSize = "12px";
             fuzzCountSpan.style.fontWeight = "normal";
-            fuzzCountSpan.textContent = `(${data.fuzzing.length}개)`;
+            
+            if (showOnlyVulnerable || selectedScanner) {
+                fuzzCountSpan.textContent = `(${filteredData.length}/${data.fuzzing.length}개)`;
+            } else {
+                fuzzCountSpan.textContent = `(${data.fuzzing.length}개)`;
+            }
             
             fuzzTitleDiv.textContent = "📨 퍼징 요청 선택 ";
             fuzzTitleDiv.appendChild(fuzzCountSpan);
 
-            data.fuzzing.forEach(async (fuzz, idx) => {
+            if (filteredData.length === 0) {
+                fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 필터 조건에 맞는 퍼징 요청이 없습니다.</p>";
+                document.getElementById("fuzz-body").value = "";
+                document.getElementById("fuzz-response").value = "";
+                document.getElementById("analysis-result").value = "";
+                updateEmptyPlaceholder();
+                return;
+            }
+
+            // 모든 퍼징 요청 항목을 순차적으로 렌더링
+            for (let idx = 0; idx < filteredData.length; idx++) {
+                const fuzz = filteredData[idx];
                 const div = document.createElement("div");
                 div.classList.add("request-item");
                 div.setAttribute("data-fuzz-index", idx);
+                div.setAttribute("data-fuzz-id", fuzz.id);
                 
                 // 첫 번째 항목은 기본 선택
                 if (idx === 0) {
@@ -171,7 +422,7 @@ async function loadRequestDetail(requestId) {
                     // 클릭된 항목에 selected 클래스 추가
                     div.classList.add("selected");
                     
-                    await updateFuzzDetail(data.fuzzing[idx]);
+                    await updateFuzzDetail(filteredData[idx]);
                 });
 
                 const content = document.createElement("div");
@@ -205,36 +456,22 @@ async function loadRequestDetail(requestId) {
                 content.appendChild(scannerSpan);
                 content.appendChild(payloadSpan);
 
-                // 취약점 분석 결과가 있는지 확인하고 아이콘 표시
-                try {
-                    const vulnRes = await fetch(`/api/fuzzed_request/${fuzz.id}/vulnerabilities`);
-                    const vulnData = await vulnRes.json();
-                    
-                    if (vulnData.vulnerability_results && vulnData.vulnerability_results.length > 0) {
-                        const vulnerabilityIcon = document.createElement("span");
-                        vulnerabilityIcon.style.marginLeft = "auto";
-                        vulnerabilityIcon.style.fontSize = "14px";
-                        vulnerabilityIcon.style.color = "#e74c3c";
-                        vulnerabilityIcon.textContent = "🚨";
-                        vulnerabilityIcon.title = "취약점 발견";
-                        content.appendChild(vulnerabilityIcon);
-                    }
-                } catch (err) {
-                    console.error(`퍼징 요청 ${fuzz.id} 취약점 확인 오류:`, err);
-                }
-
                 div.appendChild(content);
                 fuzzListDiv.appendChild(div);
-            });
+            }
+            
+            // 모든 DOM 요소가 추가된 후 취약점 아이콘을 일괄 처리
+            await addVulnerabilityIconsToList(filteredData);
 
             // 첫 번째 퍼징 요청 자동 로드
-            await updateFuzzDetail(data.fuzzing[0]);
+            await updateFuzzDetail(filteredData[0]);
         } else {
             fuzzTitleDiv.textContent = "📨 퍼징 요청 선택";
-            fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>📭 퍼징 요청이 없습니다.</p>";
-            document.getElementById("fuzz-body").value = "(퍼징 요청 없음)";
-            document.getElementById("fuzz-response").value = "(퍼징 응답 없음)";
-            document.getElementById("analysis-result").value = "퍼징 요청이 없습니다.";
+            fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징 대상이 아닙니다.</p>";
+            document.getElementById("fuzz-body").value = "";
+            document.getElementById("fuzz-response").value = "";
+            document.getElementById("analysis-result").value = "";
+            updateEmptyPlaceholder();
         }
     } catch (err) {
         console.error("요청 상세 불러오기 오류:", err);
@@ -246,10 +483,12 @@ async function updateFuzzDetail(fuzz) {
     // 로딩 상태 표시
     const analysisResult = document.getElementById("analysis-result");
     analysisResult.classList.add("loading");
-    analysisResult.value = "분석 결과를 불러오는 중...";
+    analysisResult.classList.remove("empty-placeholder");
+    analysisResult.value = "취약점이 탐지되지 않았습니다.";
     
-    document.getElementById("fuzz-body").value = fuzz.fuzzed_body || "(없음)";
-    document.getElementById("fuzz-response").value = fuzz.response_body || "(없음)";
+    document.getElementById("fuzz-body").value = fuzz.fuzzed_body || "";
+    document.getElementById("fuzz-response").value = fuzz.response_body || "";
+    updateEmptyPlaceholder();
     
     // 선택된 퍼징 요청의 취약점 분석 결과 조회
     try {
@@ -288,6 +527,8 @@ async function updateFuzzDetail(fuzz) {
             }
             
             analysisResult.value = resultText;
+        } else {
+            analysisResult.value = "";
         }
     } catch (err) {
         console.error("취약점 분석 결과 조회 오류:", err);
@@ -295,6 +536,84 @@ async function updateFuzzDetail(fuzz) {
         analysisResult.value = "❌ 분석 결과 조회 중 오류가 발생했습니다.\n\n네트워크 연결을 확인하고 다시 시도해주세요.";
         analysisResult.className = '';
     }
+    
+    updateEmptyPlaceholder();
+}
+
+function updateEmptyPlaceholder() {
+    const emptyElements = ['fuzz-body', 'fuzz-response', 'analysis-result'];
+    emptyElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (element.value.trim() === '') {
+                element.classList.add('empty-placeholder');
+            } else {
+                element.classList.remove('empty-placeholder');
+            }
+        }
+    });
+}
+
+function toggleFilter() {
+    showOnlyFuzzed = !showOnlyFuzzed;
+    const filterBtn = document.getElementById("filter-toggle");
+    
+    if (showOnlyFuzzed) {
+        filterBtn.textContent = "🚨 퍼징만";
+        filterBtn.classList.add("active");
+        filterBtn.title = "전체 요청 보기";
+    } else {
+        filterBtn.textContent = "🔍 전체";
+        filterBtn.classList.remove("active");
+        filterBtn.title = "퍼징 요청이 있는 항목만 표시";
+    }
+    
+    // 목록 새로고침
+    fetchRequests();
+}
+
+async function toggleVulnFilter() {
+    showOnlyVulnerable = !showOnlyVulnerable;
+    const filterBtn = document.getElementById("vuln-filter-toggle");
+    
+    if (showOnlyVulnerable) {
+        filterBtn.textContent = "🚨 취약점만";
+        filterBtn.classList.add("active");
+        filterBtn.title = "전체 퍼징 요청 보기";
+    } else {
+        filterBtn.textContent = "🔍 전체";
+        filterBtn.classList.remove("active");
+        filterBtn.title = "취약점이 발견된 퍼징 요청만 표시";
+    }
+    
+    // 현재 요청 상세 새로고침
+    if (currentRequestId) {
+        await loadRequestDetail(currentRequestId);
+    }
+}
+
+async function onScannerFilterChange() {
+    const scannerSelect = document.getElementById("scanner-filter");
+    selectedScanner = scannerSelect.value;
+    
+    // 현재 요청 상세 새로고침
+    if (currentRequestId) {
+        await loadRequestDetail(currentRequestId);
+    }
+}
+
+function clearVulnerabilityCache() {
+    const now = Date.now();
+    const keysToDelete = [];
+    
+    for (const [key, value] of vulnerabilityCache.entries()) {
+        if (now - value.timestamp > CACHE_DURATION) {
+            keysToDelete.push(key);
+        }
+    }
+    
+    keysToDelete.forEach(key => vulnerabilityCache.delete(key));
+    console.log(`만료된 캐시 ${keysToDelete.length}개 정리 완료`);
 }
 
 function clearAll() {
@@ -314,9 +633,41 @@ function clearAll() {
     document.getElementById("fuzz-body").value = "";
     document.getElementById("fuzz-response").value = "";
     document.getElementById("analysis-result").value = "";
+    
+    updateEmptyPlaceholder();
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+    // 원본 요청 필터 버튼 이벤트 설정
+    const filterBtn = document.getElementById("filter-toggle");
+    if (filterBtn) {
+        filterBtn.addEventListener("click", toggleFilter);
+    }
+    
+    // 퍼징 요청 취약점 필터 버튼 이벤트 설정
+    const vulnFilterBtn = document.getElementById("vuln-filter-toggle");
+    if (vulnFilterBtn) {
+        vulnFilterBtn.addEventListener("click", async () => {
+            await toggleVulnFilter();
+        });
+    }
+    
+    // 스캐너 필터 셀렉트 이벤트 설정
+    const scannerFilter = document.getElementById("scanner-filter");
+    if (scannerFilter) {
+        scannerFilter.addEventListener("change", async () => {
+            await onScannerFilterChange();
+        });
+    }
+    
     fetchRequests();
     startTimer();
+    updateEmptyPlaceholder();
+    
+    console.log("대시보드 초기화 완료 - 취약점 아이콘 최적화 적용");
+});
+
+// 페이지 언로드 시 캐시 정리
+window.addEventListener("beforeunload", () => {
+    vulnerabilityCache.clear();
 });

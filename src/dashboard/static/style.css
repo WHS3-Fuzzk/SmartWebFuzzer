@@ -52,6 +52,14 @@ h2 {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* 섹션 헤더 */
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
 /* 섹션 제목 스타일 */
 .section-title {
     font-weight: 600;
@@ -61,6 +69,86 @@ h2 {
     padding: 8px 12px;
     border-radius: 6px;
     border-left: 4px solid #3498db;
+    margin-bottom: 8px;
+}
+
+/* 섹션 헤더 내부의 제목 특별 스타일 */
+.section-header .section-title {
+    margin-bottom: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* 필터 그룹 */
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 필터 버튼 */
+.filter-btn {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    height: 32px;
+    line-height: 1;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-btn:hover {
+    background-color: #7f8c8d;
+}
+
+.filter-btn.active {
+    background-color: #e74c3c;
+}
+
+.filter-btn.active:hover {
+    background-color: #c0392b;
+}
+
+/* 필터 셀렉트 박스 */
+.filter-select {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 100px;
+    height: 32px;
+    line-height: 1;
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.filter-select:hover {
+    background-color: #7f8c8d;
+}
+
+.filter-select:focus {
+    outline: none;
+    background-color: #7f8c8d;
+}
+
+.filter-select option {
+    background-color: #ecf0f1;
+    color: #2c3e50;
 }
 
 /* textarea 기본 스타일 */
@@ -123,6 +211,14 @@ textarea:focus {
     font-size: 13px;
 }
 
+/* 취약점 아이콘 */
+.vulnerability-icon {
+    margin-left: auto;
+    font-size: 14px;
+    color: #e74c3c;
+    transition: opacity 0.3s ease;
+}
+
 /* 각 textarea 높이 통일 */
 #request-body,
 #response-body,
@@ -130,6 +226,25 @@ textarea:focus {
 #fuzz-response {
     min-height: 120px;
     flex: 1;
+}
+
+/* 빈 상태 메시지 스타일 */
+.empty-placeholder {
+    position: relative;
+}
+
+.empty-placeholder::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #7f8c8d;
+    font-style: italic;
+    text-align: center;
+    pointer-events: none;
+    white-space: pre-line;
+    z-index: 1;
 }
 
 /* 분석 결과 영역 */
