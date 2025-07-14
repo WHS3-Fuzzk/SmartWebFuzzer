@@ -198,6 +198,8 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
             print("[S_XSS] JSON 응답에서도 페이로드 없음")
             return []
     print(f"[S_XSS] 총 {len(matches)}개의 페이로드 탐지됨")
+    matches = list(set(matches))  # 중복 제거
+
 
     all_fuzzed_requests = reader.select_fuzzed_request_with_original_id_all(
         int(matches[0][0])
