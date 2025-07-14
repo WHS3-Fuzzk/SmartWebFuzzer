@@ -159,67 +159,63 @@ def get_requests():
 @app.route("/api/vulnerabilities/batch", methods=["POST"])
 def get_vulnerabilities_batch():
     """여러 퍼징 요청의 취약점을 한 번에 조회 (N+1 쿼리 최적화)"""
+
+    if not request.json:
+        return jsonify({"error": "JSON 데이터가 필요합니다"}), 400
+
+    fuzz_ids = request.json.get("fuzz_ids", [])
+
+    if not fuzz_ids:
+        return jsonify({"vulnerabilities": {}})
+
+    # JavaScript에서 오는 문자열 ID들을 정수로 변환
     try:
-        if not request.json:
-            return jsonify({"error": "JSON 데이터가 필요합니다"}), 400
+        fuzz_ids = [int(fuzz_id) for fuzz_id in fuzz_ids]
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": f"유효하지 않은 ID 형식: {e}"}), 400
 
-        fuzz_ids = request.json.get("fuzz_ids", [])
+    # 배열 형태로 한 번에 조회 (각 퍼징 요청당 최신 취약점 하나만)
+    query = """
+        SELECT fuzzed_request_id, 
+                1 as vuln_count,
+                JSON_BUILD_ARRAY(
+                    JSON_BUILD_OBJECT(
+                        'vulnerability_name', vulnerability_name,
+                        'domain', domain,
+                        'endpoint', endpoint,
+                        'method', method,
+                        'parameter', parameter,
+                        'payload', payload,
+                        'extra', extra
+                    )
+                ) as vulnerabilities
+        FROM (
+            SELECT DISTINCT ON (fuzzed_request_id) 
+                    fuzzed_request_id, vulnerability_name, domain, endpoint, 
+                    method, parameter, payload, extra
+            FROM vulnerability_scan_results 
+            WHERE fuzzed_request_id = ANY(%s)
+            ORDER BY fuzzed_request_id, id DESC
+        ) latest_vulns;
+    """
 
-        if not fuzz_ids:
-            return jsonify({"vulnerabilities": {}})
+    rows = db_manager.execute_query(query, (fuzz_ids,))
 
-        # JavaScript에서 오는 문자열 ID들을 정수로 변환
-        try:
-            fuzz_ids = [int(fuzz_id) for fuzz_id in fuzz_ids]
-        except (ValueError, TypeError) as e:
-            return jsonify({"error": f"유효하지 않은 ID 형식: {e}"}), 400
+    # 결과를 딕셔너리 형태로 구성
+    vulnerabilities = {}
+    for row in rows:
+        fuzz_id = row[0]
+        vuln_count = row[1]
+        vuln_list = row[2] if row[2] else []
 
-        # 배열 형태로 한 번에 조회 (각 퍼징 요청당 최신 취약점 하나만)
-        query = """
-            SELECT fuzzed_request_id, 
-                   1 as vuln_count,
-                   JSON_BUILD_ARRAY(
-                       JSON_BUILD_OBJECT(
-                           'vulnerability_name', vulnerability_name,
-                           'domain', domain,
-                           'endpoint', endpoint,
-                           'method', method,
-                           'parameter', parameter,
-                           'payload', payload,
-                           'extra', extra
-                       )
-                   ) as vulnerabilities
-            FROM (
-                SELECT DISTINCT ON (fuzzed_request_id) 
-                       fuzzed_request_id, vulnerability_name, domain, endpoint, 
-                       method, parameter, payload, extra
-                FROM vulnerability_scan_results 
-                WHERE fuzzed_request_id = ANY(%s)
-                ORDER BY fuzzed_request_id, id DESC
-            ) latest_vulns;
-        """
+        vulnerabilities[str(fuzz_id)] = {"count": vuln_count, "results": vuln_list}
 
-        rows = db_manager.execute_query(query, (fuzz_ids,))
+    # 요청된 모든 ID에 대해 결과 보장 (없는 경우 빈 배열)
+    for fuzz_id in fuzz_ids:
+        if str(fuzz_id) not in vulnerabilities:
+            vulnerabilities[str(fuzz_id)] = {"count": 0, "results": []}
 
-        # 결과를 딕셔너리 형태로 구성
-        vulnerabilities = {}
-        for row in rows:
-            fuzz_id = row[0]
-            vuln_count = row[1]
-            vuln_list = row[2] if row[2] else []
-
-            vulnerabilities[str(fuzz_id)] = {"count": vuln_count, "results": vuln_list}
-
-        # 요청된 모든 ID에 대해 결과 보장 (없는 경우 빈 배열)
-        for fuzz_id in fuzz_ids:
-            if str(fuzz_id) not in vulnerabilities:
-                vulnerabilities[str(fuzz_id)] = {"count": 0, "results": []}
-
-        return jsonify({"vulnerabilities": vulnerabilities})
-
-    except Exception as e:
-        print(f"배치 취약점 조회 오류: {e}")
-        return jsonify({"error": "배치 취약점 조회 중 오류가 발생했습니다"}), 500
+    return jsonify({"vulnerabilities": vulnerabilities})
 
 
 @app.route("/api/request/<int:request_id>/optimized")
