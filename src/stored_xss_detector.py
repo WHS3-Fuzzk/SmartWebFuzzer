@@ -7,12 +7,14 @@ Stored XSS 취약점 스캐너 모듈에서 발생시킨 요청을
 """
 
 import json
+import quickjs
 import re
 from typing import List
 from bs4 import BeautifulSoup
 
 from db_reader import DBReader
 from db_writer import insert_vulnerability_scan_result
+
 
 def append_custom_tag_surrounding_info(results: list, custom_tag) -> None:
     """
@@ -34,66 +36,116 @@ def append_custom_tag_surrounding_info(results: list, custom_tag) -> None:
     results.append("")
 
 
-def inspect_custom_tag_attributes(soup, tag_regex, payload) -> List[str]:
+def inspect_custom_tag_attributes(soup, identifier) -> List[str]:
     """
-    whs3fuzzk-* 태그가 생성되었을 때 해당 속성 및 주변 정보를 수집
+    whs3fuzzk-request_id-param_id 태그가 생성되었을 때 해당 속성 및 주변 정보를 수집
+    identifer는 whs3fuzzk-request_id-param_id 형식의 값
     """
     results = []
     found_in_attr = False
 
-    results.append("=== <whs3fuzzk-*> 태그가 생성됨 → 모든 태그에서 속성 검사 시작 ===")
+    results.append(
+        "=== <whs3fuzzk-*-*> 태그가 생성됨 → 모든 태그에서 속성 검사 시작 ==="
+    )
     for tag in soup.find_all(True):
-        if not re.match(tag_regex, tag.name):
+        if tag.name != identifier:
             continue
         for attr, value in tag.attrs.items():
             if not isinstance(value, (str, list)):
                 continue
             if isinstance(value, str):
-                if re.search(tag_regex, value):
+                if identifier in value:
                     found_in_attr = True
                     results.append(
                         f"<{tag.name}> 태그의 '{attr}' 속성에서 발견 → {value}"
                     )
-                    results.append(f"→ (테스트 페이로드: '{payload}')")
+                    results.append(f"→ (테스트 페이로드: '{identifier}')")
                     results.append(f"→ 해당 태그 전체: {str(tag)}")
             if isinstance(value, list):
-                matched_items = [item for item in value if re.search(tag_regex, item)]
+                matched_items = [item for item in value if identifier in item]
                 if matched_items:
                     found_in_attr = True
                     for item in matched_items:
                         results.append(
                             f"<{tag.name}> 태그의 '{attr}' 속성(list)에서 발견 → {item}"
                         )
-                        results.append(f"→ (테스트 페이로드: '{payload}')")
+                        results.append(f"→ (테스트 페이로드: '{identifier}')")
                         results.append(f"→ 해당 태그 전체: {str(tag)}")
 
     # 속성에서 발견 못했을 경우, 커스텀 태그 주변 정보 출력
     if not found_in_attr:
-        custom_tags = soup.find_all(tag_regex)
+        custom_tags = soup.find_all(identifier)
         for ctag in custom_tags:
             append_custom_tag_surrounding_info(results, ctag)
 
     return results
 
 
-def check_payload_in_attributes(html_text, payload):
+def check_identifier_in_attributes(html_text, identifier):
     """
     HTML 내에서 페이로드가 속성(attribute) 값에 반영됐는지 검사
-    HTML 내에서 whs3fuzzk-숫자 패턴을 찾아 반환
+    HTML 내에서 whs3fuzzk-request_id-param_id 패턴을 찾아 반환
+    identifer는 whs3fuzzk-request_id-param_id 형식의 값
     """
     results = []
     soup = BeautifulSoup(html_text, "html.parser")
-    tag_regex = re.compile(r"^whs3fuzzk-(\d+)-(\d+)")
-    custom_tags = soup.find_all(tag_regex)
+    custom_tags = soup.find_all(identifier)
     if custom_tags:
-        results += inspect_custom_tag_attributes(soup, tag_regex, payload)
+        results += inspect_custom_tag_attributes(soup, identifier)
     else:
-        print("[-] <whs3fuzzk-*> 태그는 생성되지 않음. 속성 검사 생략됨.")
-    
+        print("[-] <whs3fuzzk-*-*> 태그는 생성되지 않음. 속성 검사 생략됨.")
+
     return results
 
 
-def extract_ids_from_json_payload(response_body: str, payload_prefix="whs3fuzzk-"):
+def analyze_script_identifer_for_stored_xss(
+    response_body: str, identifier: str
+) -> list:
+    """
+    HTML에서 <script> 태그 추출 후
+    페이로드가 포함된 JS 코드만 실행하여 문법 오류(SyntaxError) 여부를 판단.
+    identifer는 whs3fuzzk-request_id-param_id 형식의 값
+    """
+    results = []
+    soup = BeautifulSoup(response_body, "html.parser")
+    script_tags = soup.find_all("script")
+
+    results.append(f"[+] <script> 태그 개수: {len(script_tags)}")
+
+    ctx = quickjs.Context()
+
+    if not script_tags:
+        results.append("❌ <script> 태그가 아예 없습니다!")
+        return results
+
+    for idx, tag in enumerate(script_tags):
+        script_code = tag.get_text() if hasattr(tag, "get_text") else str(tag)
+
+        if script_code and identifier in script_code:
+            results.append(
+                f"[{idx}] 🎯 내 페이로드 포함된 <script> 내용:{script_code.strip()}"
+            )
+            try:
+                ctx.eval(script_code)
+                results.append(f"[{idx}] ✅ 정상 실행됨")
+            except quickjs.JSException as e:
+                err_msg = str(e)
+                if (
+                    "SyntaxError" in err_msg
+                    or "Unknown JavaScript error during parse" in err_msg
+                ):
+                    results.append(
+                        f"[{idx}] ❌ JS 문법 오류 발생 (취약점 의심): {err_msg}"
+                    )
+                else:
+                    results.append(f"[{idx}] ⚠️ 기타 JS 실행 오류: {err_msg}")
+        else:
+            results.append(f"[{idx}] ⏭️ 페이로드 미포함 또는 이스케이프. 스킵됨.")
+
+    return results
+
+
+def extract_ids_from_json_payload(response_body: str):
     """
     JSON 응답에서 whs3fuzzk-{request_id}-{param_id} 패턴을 찾아 request_id, param_id 추출
     """
@@ -103,7 +155,7 @@ def extract_ids_from_json_payload(response_body: str, payload_prefix="whs3fuzzk-
         return []
 
     results = []
-    pattern = re.compile(rf"{payload_prefix}(\d+)-(\d+)")
+    pattern = re.compile(r"whs3fuzzk-(\d+)-(\d+)")
 
     def recursive_search(obj):
         if isinstance(obj, dict):
@@ -128,7 +180,7 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
     """
     reader = DBReader()
     # payload + request_id + param_id
-    pattern = re.compile(r'whs3fuzzk-(\d+)-(\d+)')
+    pattern = re.compile(r"whs3fuzzk-(\d+)-(\d+)")
     body_dict = response.get("body")
     if isinstance(body_dict, dict):
         response_body = body_dict.get("body", "")
@@ -159,6 +211,7 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
     for req_id_str, param_id_str in matches:
         request_id = int(req_id_str)
         param_id = int(param_id_str)
+        identifier = f"whs3fuzzk-{request_id}-{param_id}"
 
         matched_fuzzed_request = None
         for fr in all_fuzzed_requests:
@@ -186,8 +239,12 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
             "payload": payload,
             "parameter": parameter,
             "extra": {
-                "attribute_check": check_payload_in_attributes(response_body, pattern),
-
+                "attribute_check": check_identifier_in_attributes(
+                    response_body, identifier
+                ),
+                "syntaxError_check": analyze_script_identifer_for_stored_xss(
+                    response_body, identifier
+                ),
             },
         }
 
