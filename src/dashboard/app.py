@@ -225,110 +225,106 @@ def get_vulnerabilities_batch():
 @app.route("/api/request/<int:request_id>/optimized")
 def get_request_detail_optimized(request_id):
     """통합 쿼리로 요청 상세 정보를 한 번에 조회 (조인 최적화)"""
-    try:
-        # 단일 통합 쿼리로 모든 데이터 조회
-        query = """
-        WITH request_info AS (
-            SELECT 
-                r.id as request_id,
-                rb.body AS request_body,
-                res.status_code,
-                resb.body AS response_body
-            FROM filtered_request r
-            LEFT JOIN filtered_request_body rb ON r.id = rb.request_id
-            LEFT JOIN filtered_response res ON r.id = res.request_id
-            LEFT JOIN filtered_response_body resb ON res.id = resb.response_id
-            WHERE r.id = %s
-            ORDER BY res.id DESC
-            LIMIT 1
-        ),
-        latest_vulnerabilities AS (
-            SELECT DISTINCT ON (fuzzed_request_id)
-                fuzzed_request_id,
-                vulnerability_name, domain, endpoint, method, parameter, payload, extra
-            FROM vulnerability_scan_results
-            ORDER BY fuzzed_request_id, id DESC
-        ),
-        fuzzing_info AS (
-            SELECT 
-                fr.id,
-                fr.scanner,
-                fr.method,
-                fr.payload,
-                frb.body AS fuzzed_body,
-                fres.status_code,
-                fresb.body AS response_body,
-                fr.timestamp,
-                CASE 
-                    WHEN lv.vulnerability_name IS NOT NULL THEN 
-                        JSON_BUILD_ARRAY(
-                            JSON_BUILD_OBJECT(
-                                'vulnerability_name', lv.vulnerability_name,
-                                'domain', lv.domain,
-                                'endpoint', lv.endpoint,
-                                'method', lv.method,
-                                'parameter', lv.parameter,
-                                'payload', lv.payload,
-                                'extra', lv.extra
-                            )
-                        )
-                    ELSE '[]'::json
-                END as vulnerabilities,
-                CASE 
-                    WHEN lv.vulnerability_name IS NOT NULL THEN 1 
-                    ELSE 0 
-                END as vuln_count
-            FROM fuzzed_request fr
-            LEFT JOIN fuzzed_request_body frb ON fr.id = frb.fuzzed_request_id
-            LEFT JOIN fuzzed_response fres ON fr.id = fres.fuzzed_request_id
-            LEFT JOIN fuzzed_response_body fresb ON fres.id = fresb.fuzzed_response_id
-            LEFT JOIN latest_vulnerabilities lv ON fr.id = lv.fuzzed_request_id
-            WHERE fr.original_request_id = %s
-            ORDER BY fr.timestamp DESC
-        )
+
+    # 단일 통합 쿼리로 모든 데이터 조회
+    query = """
+    WITH request_info AS (
         SELECT 
-            ri.request_id,
-            ri.request_body,
-            ri.response_body,
-            COALESCE(
-                JSON_AGG(
-                    JSON_BUILD_OBJECT(
-                        'id', fi.id,
-                        'scanner', fi.scanner,
-                        'method', fi.method,
-                        'payload', fi.payload,
-                        'fuzzed_body', fi.fuzzed_body,
-                        'response_body', fi.response_body,
-                        'vuln_count', fi.vuln_count,
-                        'vulnerabilities', fi.vulnerabilities
-                    ) ORDER BY fi.timestamp DESC
-                ) FILTER (WHERE fi.id IS NOT NULL), 
-                '[]'::json
-            ) as fuzzing_data
-        FROM request_info ri
-        LEFT JOIN fuzzing_info fi ON TRUE
-        GROUP BY ri.request_id, ri.request_body, ri.response_body;
-        """
+            r.id as request_id,
+            rb.body AS request_body,
+            res.status_code,
+            resb.body AS response_body
+        FROM filtered_request r
+        LEFT JOIN filtered_request_body rb ON r.id = rb.request_id
+        LEFT JOIN filtered_response res ON r.id = res.request_id
+        LEFT JOIN filtered_response_body resb ON res.id = resb.response_id
+        WHERE r.id = %s
+        ORDER BY res.id DESC
+        LIMIT 1
+    ),
+    latest_vulnerabilities AS (
+        SELECT DISTINCT ON (fuzzed_request_id)
+            fuzzed_request_id,
+            vulnerability_name, domain, endpoint, method, parameter, payload, extra
+        FROM vulnerability_scan_results
+        ORDER BY fuzzed_request_id, id DESC
+    ),
+    fuzzing_info AS (
+        SELECT 
+            fr.id,
+            fr.scanner,
+            fr.method,
+            fr.payload,
+            frb.body AS fuzzed_body,
+            fres.status_code,
+            fresb.body AS response_body,
+            fr.timestamp,
+            CASE 
+                WHEN lv.vulnerability_name IS NOT NULL THEN 
+                    JSON_BUILD_ARRAY(
+                        JSON_BUILD_OBJECT(
+                            'vulnerability_name', lv.vulnerability_name,
+                            'domain', lv.domain,
+                            'endpoint', lv.endpoint,
+                            'method', lv.method,
+                            'parameter', lv.parameter,
+                            'payload', lv.payload,
+                            'extra', lv.extra
+                        )
+                    )
+                ELSE '[]'::json
+            END as vulnerabilities,
+            CASE 
+                WHEN lv.vulnerability_name IS NOT NULL THEN 1 
+                ELSE 0 
+            END as vuln_count
+        FROM fuzzed_request fr
+        LEFT JOIN fuzzed_request_body frb ON fr.id = frb.fuzzed_request_id
+        LEFT JOIN fuzzed_response fres ON fr.id = fres.fuzzed_request_id
+        LEFT JOIN fuzzed_response_body fresb ON fres.id = fresb.fuzzed_response_id
+        LEFT JOIN latest_vulnerabilities lv ON fr.id = lv.fuzzed_request_id
+        WHERE fr.original_request_id = %s
+        ORDER BY fr.timestamp DESC
+    )
+    SELECT 
+        ri.request_id,
+        ri.request_body,
+        ri.response_body,
+        COALESCE(
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'id', fi.id,
+                    'scanner', fi.scanner,
+                    'method', fi.method,
+                    'payload', fi.payload,
+                    'fuzzed_body', fi.fuzzed_body,
+                    'response_body', fi.response_body,
+                    'vuln_count', fi.vuln_count,
+                    'vulnerabilities', fi.vulnerabilities
+                ) ORDER BY fi.timestamp DESC
+            ) FILTER (WHERE fi.id IS NOT NULL), 
+            '[]'::json
+        ) as fuzzing_data
+    FROM request_info ri
+    LEFT JOIN fuzzing_info fi ON TRUE
+    GROUP BY ri.request_id, ri.request_body, ri.response_body;
+    """
 
-        rows = db_manager.execute_query(query, (request_id, request_id))
+    rows = db_manager.execute_query(query, (request_id, request_id))
 
-        if not rows:
-            return jsonify({"error": "요청 ID에 대한 데이터 없음"}), 404
+    if not rows:
+        return jsonify({"error": "요청 ID에 대한 데이터 없음"}), 404
 
-        row = rows[0]
+    row = rows[0]
 
-        return jsonify(
-            {
-                "id": row[0],
-                "request_body": row[1] or "",
-                "response_body": row[2] or "",
-                "fuzzing": row[3] if row[3] else [],
-            }
-        )
-
-    except Exception as e:
-        print(f"통합 쿼리 오류: {e}")
-        return jsonify({"error": "요청 상세 정보 조회 중 오류가 발생했습니다"}), 500
+    return jsonify(
+        {
+            "id": row[0],
+            "request_body": row[1] or "",
+            "response_body": row[2] or "",
+            "fuzzing": row[3] if row[3] else [],
+        }
+    )
 
 
 if __name__ == "__main__":
