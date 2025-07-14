@@ -209,6 +209,19 @@ textarea:focus {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 13px;
+    min-width: 0; /* flex 아이템이 축소될 수 있도록 */
+}
+
+/* URL 표시 부분의 스타일 개선 */
+.request-item-content span:not(.vulnerability-icon) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.request-item-content span:nth-child(2) {
+    flex: 1; /* URL 부분이 사용 가능한 공간을 차지 */
+    min-width: 0; /* 축소 가능하도록 */
 }
 
 /* 취약점 아이콘 */
