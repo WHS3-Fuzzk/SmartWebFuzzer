@@ -29,7 +29,6 @@ from db_writer import (
     insert_vulnerability_scan_result,
 )
 from scanners.base import BaseScanner
-from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 from typedefs import RequestData
 
 
@@ -287,14 +286,8 @@ class DomXss(BaseScanner):
             request
         )  # ✅ 드라이버가 없다면 최초 한 번만 실행
 
-        # 1️⃣ 비동기 변조 요청 전송
-        async_results = self._dispatch_fuzz_requests(request)
         results = []
-
-        # 2️⃣ 응답 수집 후 분석 수행
-        for fuzz_request, async_result in async_results:
-            async_result.get(timeout=30)  # Celery 결과 대기
-
+        for fuzz_request in self.generate_fuzzing_requests(request):
             # 3️⃣ URL 구성
             full_url = self._build_full_url(fuzz_request)
             print(f"[DEBUG] Full URL for analysis: {full_url}")
@@ -324,17 +317,6 @@ class DomXss(BaseScanner):
                 print(f"[-] DOM-XSS 없음 → {full_url}")
 
         return results
-
-    def _dispatch_fuzz_requests(self, request: RequestData):
-        """
-        주어진 요청에 대해 fuzzing request를 생성하고 비동기 Celery 작업으로 전송
-        """
-        async_results = []
-        for fuzz_request in self.generate_fuzzing_requests(request):
-            task = send_fuzz_request.s(request_data=fuzz_request)
-            result = task.apply_async()
-            async_results.append((fuzz_request, result))
-        return async_results
 
     def _build_full_url(self, fuzz_request: RequestData) -> str:
         """
