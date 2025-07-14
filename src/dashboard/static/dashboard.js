@@ -102,10 +102,10 @@ async function fetchRequests() {
             // 퍼징 요청이 있는 경우 표시
             if (req.has_fuzzing) {
                 const fuzzingIcon = document.createElement("span");
-                fuzzingIcon.style.marginLeft = "8px";
+                fuzzingIcon.style.marginLeft = "auto";
                 fuzzingIcon.style.fontSize = "14px";
                 fuzzingIcon.style.color = "#27ae60";
-                fuzzingIcon.textContent = "🔬";
+                fuzzingIcon.textContent = "🚨";
                 fuzzingIcon.title = "퍼징 테스트 완료";
                 content.appendChild(fuzzingIcon);
             }
@@ -152,7 +152,7 @@ async function loadRequestDetail(requestId) {
             fuzzTitleDiv.textContent = "📨 퍼징 요청 선택 ";
             fuzzTitleDiv.appendChild(fuzzCountSpan);
 
-            data.fuzzing.forEach((fuzz, idx) => {
+            data.fuzzing.forEach(async (fuzz, idx) => {
                 const div = document.createElement("div");
                 div.classList.add("request-item");
                 div.setAttribute("data-fuzz-index", idx);
@@ -204,6 +204,24 @@ async function loadRequestDetail(requestId) {
                 // content에 안전하게 추가
                 content.appendChild(scannerSpan);
                 content.appendChild(payloadSpan);
+
+                // 취약점 분석 결과가 있는지 확인하고 아이콘 표시
+                try {
+                    const vulnRes = await fetch(`/api/fuzzed_request/${fuzz.id}/vulnerabilities`);
+                    const vulnData = await vulnRes.json();
+                    
+                    if (vulnData.vulnerability_results && vulnData.vulnerability_results.length > 0) {
+                        const vulnerabilityIcon = document.createElement("span");
+                        vulnerabilityIcon.style.marginLeft = "auto";
+                        vulnerabilityIcon.style.fontSize = "14px";
+                        vulnerabilityIcon.style.color = "#e74c3c";
+                        vulnerabilityIcon.textContent = "🚨";
+                        vulnerabilityIcon.title = "취약점 발견";
+                        content.appendChild(vulnerabilityIcon);
+                    }
+                } catch (err) {
+                    console.error(`퍼징 요청 ${fuzz.id} 취약점 확인 오류:`, err);
+                }
 
                 div.appendChild(content);
                 fuzzListDiv.appendChild(div);
