@@ -150,12 +150,16 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
         detected_encoding = chardet.detect(response.content)["encoding"]
         body = response.content.decode(detected_encoding or "utf-8", errors="replace")
 
+        # HTTP 버전 매핑
+        http_version_map = {10: "1.0", 11: "1.1", 20: "2.0"}
+        http_version = "HTTP/" + http_version_map.get(response.raw.version, "unknown")
+
         return {
             "status_code": response.status_code,
             "headers": dict(response.headers),
             "text": response.text,
             "elapsed_time": response.elapsed.total_seconds(),
-            "http_version": response.raw.version,
+            "http_version": http_version,
             "url": response.url,
             "body": body,
             "timestamp": datetime.now(),
