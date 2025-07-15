@@ -445,8 +445,105 @@ async function loadRequestDetail(requestId) {
         const res = await fetch(`/api/request/${requestId}/optimized`);
         const data = await res.json();
 
-        document.getElementById("request-body").value = data.request_body || "";
-        document.getElementById("response-body").value = data.response_body || "";
+        // 완전한 HTTP 요청 정보 구성
+        let requestText = "";
+        if (data.request) {
+            const req = data.request;
+            
+            // 요청 라인 구성
+            const queryString = Object.keys(req.query_params || {}).length > 0 
+                ? '?' + Object.entries(req.query_params).map(([k, v]) => `${k}=${v}`).join('&')
+                : '';
+            
+            requestText += `${req.method || 'GET'} ${req.path || '/'}${queryString} ${req.http_version || '1.1'}\n`;
+            
+            // Host 헤더 추가 (일반적으로 필수)
+            if (req.domain) {
+                requestText += `Host: ${req.domain}\n`;
+            }
+            
+            // 헤더 추가 (중복 방지를 위해 필터링)
+            const processedHeaders = new Set();
+            Object.entries(req.headers || {}).forEach(([key, value]) => {
+                if (key && value) {
+                    const normalizedKey = key.toLowerCase();
+                    if (!processedHeaders.has(normalizedKey)) {
+                        requestText += `${key}: ${value}\n`;
+                        processedHeaders.add(normalizedKey);
+                    }
+                }
+            });
+            
+            // 요청 메타데이터 추가 (헤더에 없는 경우만)
+            if (req.content_type && !processedHeaders.has('content-type')) {
+                requestText += `Content-Type: ${req.content_type}`;
+                if (req.charset) {
+                    requestText += `; charset=${req.charset}`;
+                }
+                requestText += '\n';
+            }
+            if (req.content_length && !processedHeaders.has('content-length')) {
+                requestText += `Content-Length: ${req.content_length}\n`;
+            }
+            if (req.content_encoding && !processedHeaders.has('content-encoding')) {
+                requestText += `Content-Encoding: ${req.content_encoding}\n`;
+            }
+            
+            // 빈 줄 추가 (헤더와 바디 구분)
+            requestText += '\n';
+            
+            // 요청 바디 추가
+            if (req.body) {
+                requestText += req.body;
+            }
+        }
+
+        // 완전한 HTTP 응답 정보 구성
+        let responseText = "";
+        if (data.response) {
+            const resp = data.response;
+            
+            // 응답 라인 구성
+            responseText += `${resp.http_version || '1.1'} ${resp.status_code || '200'}\n`;
+            
+            // 헤더 추가 (중복 방지를 위해 필터링)
+            const processedHeaders = new Set();
+            Object.entries(resp.headers || {}).forEach(([key, value]) => {
+                if (key && value) {
+                    const normalizedKey = key.toLowerCase();
+                    if (!processedHeaders.has(normalizedKey)) {
+                        responseText += `${key}: ${value}\n`;
+                        processedHeaders.add(normalizedKey);
+                    }
+                }
+            });
+            
+            // 응답 메타데이터 추가 (헤더에 없는 경우만)
+            if (resp.content_type && !processedHeaders.has('content-type')) {
+                responseText += `Content-Type: ${resp.content_type}`;
+                if (resp.charset) {
+                    responseText += `; charset=${resp.charset}`;
+                }
+                responseText += '\n';
+            }
+            if (resp.content_length && !processedHeaders.has('content-length')) {
+                responseText += `Content-Length: ${resp.content_length}\n`;
+            }
+            if (resp.content_encoding && !processedHeaders.has('content-encoding')) {
+                responseText += `Content-Encoding: ${resp.content_encoding}\n`;
+            }
+            
+            // 빈 줄 추가 (헤더와 바디 구분)
+            responseText += '\n';
+            
+            // 응답 바디 추가
+            if (resp.body) {
+                responseText += resp.body;
+            }
+        }
+
+        document.getElementById("request-body").value = requestText;
+        document.getElementById("response-body").value = responseText;
 
         const fuzzListDiv = document.getElementById("fuzz-request-list");
         const fuzzTitleDiv = document.getElementById("fuzz-request-title");
@@ -571,8 +668,113 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
     analysisResult.classList.remove("empty-placeholder");
     analysisResult.value = "취약점이 탐지되지 않았습니다.";
     
-    document.getElementById("fuzz-body").value = fuzz.fuzzed_body || "";
-    document.getElementById("fuzz-response").value = fuzz.response_body || "";
+    try {
+        // 퍼징 요청의 헤더 정보를 가져와서 완전한 HTTP 메시지로 구성
+        const headersRes = await fetch(`/api/fuzz-request/${fuzz.id}/headers`);
+        const headersData = await headersRes.json();
+        
+        // 완전한 퍼징 요청 정보 구성
+        let fuzzRequestText = "";
+        
+        // 쿼리 파라미터 구성
+        const queryString = Object.keys(headersData.query_params || {}).length > 0 
+            ? '?' + Object.entries(headersData.query_params).map(([k, v]) => `${k}=${v}`).join('&')
+            : '';
+        
+        // 요청 라인 구성
+        fuzzRequestText += `${fuzz.method || 'GET'} ${fuzz.fuzz_request_path || '/'}${queryString} ${fuzz.fuzz_request_http_version || '1.1'}\n`;
+        
+        // Host 헤더 추가
+        if (fuzz.fuzz_request_domain) {
+            fuzzRequestText += `Host: ${fuzz.fuzz_request_domain}\n`;
+        }
+        
+        // 헤더 추가 (중복 방지)
+        const processedHeaders = new Set();
+        Object.entries(headersData.request_headers || {}).forEach(([key, value]) => {
+            if (key && value) {
+                const normalizedKey = key.toLowerCase();
+                if (!processedHeaders.has(normalizedKey)) {
+                    fuzzRequestText += `${key}: ${value}\n`;
+                    processedHeaders.add(normalizedKey);
+                }
+            }
+        });
+        
+        // 요청 메타데이터 추가 (헤더에 없는 경우만)
+        if (fuzz.fuzz_request_content_type && !processedHeaders.has('content-type')) {
+            fuzzRequestText += `Content-Type: ${fuzz.fuzz_request_content_type}`;
+            if (fuzz.fuzz_request_charset) {
+                fuzzRequestText += `; charset=${fuzz.fuzz_request_charset}`;
+            }
+            fuzzRequestText += '\n';
+        }
+        if (fuzz.fuzz_request_content_length && !processedHeaders.has('content-length')) {
+            fuzzRequestText += `Content-Length: ${fuzz.fuzz_request_content_length}\n`;
+        }
+        if (fuzz.fuzz_request_content_encoding && !processedHeaders.has('content-encoding')) {
+            fuzzRequestText += `Content-Encoding: ${fuzz.fuzz_request_content_encoding}\n`;
+        }
+        
+        // 빈 줄 추가 (헤더와 바디 구분)
+        fuzzRequestText += '\n';
+        
+        // 요청 바디 추가
+        if (fuzz.fuzzed_body) {
+            fuzzRequestText += fuzz.fuzzed_body;
+        }
+        
+        // 완전한 퍼징 응답 정보 구성
+        let fuzzResponseText = "";
+        
+        // 응답 라인 구성
+        fuzzResponseText += `${fuzz.fuzz_response_http_version || '1.1'} ${fuzz.fuzz_response_status_code || '200'}\n`;
+        
+        // 헤더 추가 (중복 방지)
+        const processedResponseHeaders = new Set();
+        Object.entries(headersData.response_headers || {}).forEach(([key, value]) => {
+            if (key && value) {
+                const normalizedKey = key.toLowerCase();
+                if (!processedResponseHeaders.has(normalizedKey)) {
+                    fuzzResponseText += `${key}: ${value}\n`;
+                    processedResponseHeaders.add(normalizedKey);
+                }
+            }
+        });
+        
+        // 응답 메타데이터 추가 (헤더에 없는 경우만)
+        if (fuzz.fuzz_response_content_type && !processedResponseHeaders.has('content-type')) {
+            fuzzResponseText += `Content-Type: ${fuzz.fuzz_response_content_type}`;
+            if (fuzz.fuzz_response_charset) {
+                fuzzResponseText += `; charset=${fuzz.fuzz_response_charset}`;
+            }
+            fuzzResponseText += '\n';
+        }
+        if (fuzz.fuzz_response_content_length && !processedResponseHeaders.has('content-length')) {
+            fuzzResponseText += `Content-Length: ${fuzz.fuzz_response_content_length}\n`;
+        }
+        if (fuzz.fuzz_response_content_encoding && !processedResponseHeaders.has('content-encoding')) {
+            fuzzResponseText += `Content-Encoding: ${fuzz.fuzz_response_content_encoding}\n`;
+        }
+        
+        // 빈 줄 추가 (헤더와 바디 구분)
+        fuzzResponseText += '\n';
+        
+        // 응답 바디 추가
+        if (fuzz.response_body) {
+            fuzzResponseText += fuzz.response_body;
+        }
+        
+        document.getElementById("fuzz-body").value = fuzzRequestText;
+        document.getElementById("fuzz-response").value = fuzzResponseText;
+        
+    } catch (err) {
+        console.error("퍼징 요청 헤더 정보 조회 오류:", err);
+        // 오류 발생 시 기본값 사용
+        document.getElementById("fuzz-body").value = fuzz.fuzzed_body || "";
+        document.getElementById("fuzz-response").value = fuzz.response_body || "";
+    }
+    
     updateEmptyPlaceholder();
     
     try {

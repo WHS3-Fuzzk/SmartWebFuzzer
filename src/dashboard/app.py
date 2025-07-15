@@ -220,15 +220,28 @@ def get_vulnerabilities_batch():
 
 @app.route("/api/request/<int:request_id>/optimized")
 def get_request_detail_optimized(request_id):
-    """통합 쿼리로 요청 상세 정보를 한 번에 조회 (조인 최적화)"""
+    """통합 쿼리로 요청 상세 정보를 한 번에 조회 (조인 최적화) - 헤더 정보 포함"""
 
-    # 단일 통합 쿼리로 모든 데이터 조회
+    # 단일 통합 쿼리로 모든 데이터 조회 - 헤더 정보 포함
     query = """
     WITH request_info AS (
         SELECT 
             r.id as request_id,
+            r.method,
+            r.http_version as request_http_version,
+            r.domain,
+            r.path,
+            rb.content_type as request_content_type,
+            rb.charset as request_charset,
+            rb.content_length as request_content_length,
+            rb.content_encoding as request_content_encoding,
             rb.body AS request_body,
             res.status_code,
+            res.http_version as response_http_version,
+            resb.content_type as response_content_type,
+            resb.charset as response_charset,
+            resb.content_length as response_content_length,
+            resb.content_encoding as response_content_encoding,
             resb.body AS response_body
         FROM filtered_request r
         LEFT JOIN filtered_request_body rb ON r.id = rb.request_id
@@ -250,9 +263,21 @@ def get_request_detail_optimized(request_id):
             fr.id,
             fr.scanner,
             fr.method,
+            fr.http_version as fuzz_request_http_version,
+            fr.domain as fuzz_request_domain,
+            fr.path as fuzz_request_path,
             fr.payload,
+            frb.content_type as fuzz_request_content_type,
+            frb.charset as fuzz_request_charset,
+            frb.content_length as fuzz_request_content_length,
+            frb.content_encoding as fuzz_request_content_encoding,
             frb.body AS fuzzed_body,
             fres.status_code,
+            fres.http_version as fuzz_response_http_version,
+            fresb.content_type as fuzz_response_content_type,
+            fresb.charset as fuzz_response_charset,
+            fresb.content_length as fuzz_response_content_length,
+            fresb.content_encoding as fuzz_response_content_encoding,
             fresb.body AS response_body,
             fr.timestamp,
             CASE 
@@ -284,7 +309,21 @@ def get_request_detail_optimized(request_id):
     )
     SELECT 
         ri.request_id,
+        ri.method,
+        ri.request_http_version,
+        ri.domain,
+        ri.path,
+        ri.request_content_type,
+        ri.request_charset,
+        ri.request_content_length,
+        ri.request_content_encoding,
         ri.request_body,
+        ri.status_code,
+        ri.response_http_version,
+        ri.response_content_type,
+        ri.response_charset,
+        ri.response_content_length,
+        ri.response_content_encoding,
         ri.response_body,
         COALESCE(
             JSON_AGG(
@@ -292,8 +331,21 @@ def get_request_detail_optimized(request_id):
                     'id', fi.id,
                     'scanner', fi.scanner,
                     'method', fi.method,
+                    'fuzz_request_http_version', fi.fuzz_request_http_version,
+                    'fuzz_request_domain', fi.fuzz_request_domain,
+                    'fuzz_request_path', fi.fuzz_request_path,
                     'payload', fi.payload,
+                    'fuzz_request_content_type', fi.fuzz_request_content_type,
+                    'fuzz_request_charset', fi.fuzz_request_charset,
+                    'fuzz_request_content_length', fi.fuzz_request_content_length,
+                    'fuzz_request_content_encoding', fi.fuzz_request_content_encoding,
                     'fuzzed_body', fi.fuzzed_body,
+                    'fuzz_response_status_code', fi.status_code,
+                    'fuzz_response_http_version', fi.fuzz_response_http_version,
+                    'fuzz_response_content_type', fi.fuzz_response_content_type,
+                    'fuzz_response_charset', fi.fuzz_response_charset,
+                    'fuzz_response_content_length', fi.fuzz_response_content_length,
+                    'fuzz_response_content_encoding', fi.fuzz_response_content_encoding,
                     'response_body', fi.response_body,
                     'vuln_count', fi.vuln_count,
                     'vulnerabilities', fi.vulnerabilities
@@ -303,7 +355,11 @@ def get_request_detail_optimized(request_id):
         ) as fuzzing_data
     FROM request_info ri
     LEFT JOIN fuzzing_info fi ON TRUE
-    GROUP BY ri.request_id, ri.request_body, ri.response_body;
+    GROUP BY ri.request_id, ri.method, ri.request_http_version, ri.domain, ri.path,
+             ri.request_content_type, ri.request_charset, ri.request_content_length, ri.request_content_encoding,
+             ri.request_body, ri.status_code, ri.response_http_version,
+             ri.response_content_type, ri.response_charset, ri.response_content_length, ri.response_content_encoding,
+             ri.response_body;
     """
 
     rows = db_manager.execute_query(query, (request_id, request_id))
@@ -313,12 +369,138 @@ def get_request_detail_optimized(request_id):
 
     row = rows[0]
 
+    # 헤더 정보 별도 조회
+    request_headers_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(key, value ORDER BY id) FILTER (WHERE key IS NOT NULL), 
+            '{}'::json
+        ) as headers
+        FROM filtered_request_headers
+        WHERE request_id = %s
+    """
+
+    response_headers_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(resh.key, resh.value ORDER BY resh.id) FILTER (WHERE resh.key IS NOT NULL), 
+            '{}'::json
+        ) as headers
+        FROM filtered_response res
+        LEFT JOIN filtered_response_headers resh ON res.id = resh.response_id
+        WHERE res.request_id = %s
+    """
+
+    query_params_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(key, value ORDER BY id) FILTER (WHERE key IS NOT NULL), 
+            '{}'::json
+        ) as params
+        FROM filtered_query_params
+        WHERE request_id = %s
+    """
+
+    # 헤더 정보 조회
+    request_headers_rows = db_manager.execute_query(
+        request_headers_query, (request_id,)
+    )
+    response_headers_rows = db_manager.execute_query(
+        response_headers_query, (request_id,)
+    )
+    query_params_rows = db_manager.execute_query(query_params_query, (request_id,))
+
+    request_headers = request_headers_rows[0][0] if request_headers_rows else {}
+    response_headers = response_headers_rows[0][0] if response_headers_rows else {}
+    query_params = query_params_rows[0][0] if query_params_rows else {}
+
+    # 완전한 HTTP 요청 정보 구성
+    request_data = {
+        "method": row[1],
+        "http_version": row[2],
+        "domain": row[3],
+        "path": row[4],
+        "content_type": row[5],
+        "charset": row[6],
+        "content_length": row[7],
+        "content_encoding": row[8],
+        "body": row[9] or "",
+        "headers": request_headers,
+        "query_params": query_params,
+    }
+
+    # 완전한 HTTP 응답 정보 구성
+    response_data = {
+        "status_code": row[10],
+        "http_version": row[11],
+        "content_type": row[12],
+        "charset": row[13],
+        "content_length": row[14],
+        "content_encoding": row[15],
+        "body": row[16] or "",
+        "headers": response_headers,
+    }
+
     return jsonify(
         {
             "id": row[0],
-            "request_body": row[1] or "",
-            "response_body": row[2] or "",
-            "fuzzing": row[3] if row[3] else [],
+            "request": request_data,
+            "response": response_data,
+            "fuzzing": row[17] if row[17] else [],
+        }
+    )
+
+
+@app.route("/api/fuzz-request/<int:fuzz_request_id>/headers")
+def get_fuzz_request_headers(fuzz_request_id):
+    """퍼징 요청의 헤더 정보를 조회"""
+
+    # 퍼징 요청 헤더 조회
+    request_headers_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(key, value ORDER BY id) FILTER (WHERE key IS NOT NULL), 
+            '{}'::json
+        ) as headers
+        FROM fuzzed_request_headers
+        WHERE fuzzed_request_id = %s
+    """
+
+    # 퍼징 요청 쿼리 파라미터 조회
+    query_params_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(key, value ORDER BY id) FILTER (WHERE key IS NOT NULL), 
+            '{}'::json
+        ) as params
+        FROM fuzzed_query_params
+        WHERE fuzzed_request_id = %s
+    """
+
+    # 퍼징 응답 헤더 조회
+    response_headers_query = """
+        SELECT COALESCE(
+            JSON_OBJECT_AGG(frh.key, frh.value ORDER BY frh.id) FILTER (WHERE frh.key IS NOT NULL), 
+            '{}'::json
+        ) as headers
+        FROM fuzzed_response fr
+        LEFT JOIN fuzzed_response_headers frh ON fr.id = frh.fuzzed_response_id
+        WHERE fr.fuzzed_request_id = %s
+    """
+
+    # 헤더 정보 조회
+    request_headers_rows = db_manager.execute_query(
+        request_headers_query, (fuzz_request_id,)
+    )
+    query_params_rows = db_manager.execute_query(query_params_query, (fuzz_request_id,))
+    response_headers_rows = db_manager.execute_query(
+        response_headers_query, (fuzz_request_id,)
+    )
+
+    request_headers = request_headers_rows[0][0] if request_headers_rows else {}
+    query_params = query_params_rows[0][0] if query_params_rows else {}
+    response_headers = response_headers_rows[0][0] if response_headers_rows else {}
+
+    return jsonify(
+        {
+            "request_headers": request_headers,
+            "query_params": query_params,
+            "response_headers": response_headers,
         }
     )
 
