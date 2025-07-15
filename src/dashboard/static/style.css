@@ -233,15 +233,6 @@ textarea:focus {
     transition: opacity 0.3s ease;
 }
 
-/* 각 textarea 높이 통일 */
-#request-body,
-#response-body,
-#fuzz-body,
-#fuzz-response {
-    min-height: 120px;
-    flex: 1;
-}
-
 /* 빈 상태 메시지 스타일 */
 .empty-placeholder {
     position: relative;
@@ -315,6 +306,85 @@ textarea::-webkit-scrollbar-thumb:hover,
 #original-request-list::-webkit-scrollbar-thumb:hover,
 #fuzz-request-list::-webkit-scrollbar-thumb:hover {
     background-color: #95a5a6;
+}
+
+/* Diff 하이라이팅 스타일 */
+.diff-container {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 120px;
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+.diff-added {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+}
+
+.diff-removed {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    text-decoration: line-through;
+}
+
+.diff-modified {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+}
+
+.diff-toggle {
+    margin-left: 10px;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.diff-toggle:hover {
+    background: #0056b3;
+}
+
+.diff-toggle.active {
+    background: #28a745;
+}
+
+/* 원본 텍스트 컨테이너 */
+.original-container {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 120px;
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
 }
 
 /* 반응형 디자인 */

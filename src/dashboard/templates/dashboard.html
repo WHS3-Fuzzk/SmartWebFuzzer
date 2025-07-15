@@ -23,11 +23,14 @@
             </div>
             <div id="original-request-list"></div>
 
-            <div class="section-title">📝 원본 요청</div>
-            <textarea id="request-body" readonly></textarea>
+            <div class="section-title">
+                📝 원본 요청
+                <button id="scroll-sync-toggle" class="diff-toggle" title="스크롤 동기화">SYNC</button>
+            </div>
+            <div id="request-body-container" class="original-container"></div>
 
             <div class="section-title">📬 원본 응답</div>
-            <textarea id="response-body" readonly></textarea>
+            <div id="response-body-container" class="original-container"></div>
         </div>
 
         <!-- 가운데 : 퍼징 요청 및 응답 -->
@@ -45,11 +48,17 @@
             </div>
             <div id="fuzz-request-list"></div>
 
-            <div class="section-title">📤 퍼징 요청</div>
-            <textarea id="fuzz-body" readonly data-placeholder="🔍 퍼징 요청을 선택하면&#10;요청 전체가 표시됩니다"></textarea>
+            <div class="section-title">
+                📤 퍼징 요청
+                <button id="fuzz-request-diff-toggle" class="diff-toggle" title="차이점 강조 표시">DIFF</button>
+            </div>
+            <div id="fuzz-body-container" class="diff-container"></div>
 
-            <div class="section-title">📥 퍼징 응답</div>
-            <textarea id="fuzz-response" readonly data-placeholder="📥 퍼징 요청을 선택하면&#10;응답 전체가 표시됩니다"></textarea>
+            <div class="section-title">
+                📥 퍼징 응답
+                <button id="fuzz-response-diff-toggle" class="diff-toggle" title="차이점 강조 표시">DIFF</button>
+            </div>
+            <div id="fuzz-response-container" class="diff-container"></div>
         </div>
 
         <!-- 오른쪽 : 분석 결과 -->

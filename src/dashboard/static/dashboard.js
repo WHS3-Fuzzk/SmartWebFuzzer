@@ -542,8 +542,13 @@ async function loadRequestDetail(requestId) {
             }
         }
 
-        document.getElementById("request-body").value = requestText;
-        document.getElementById("response-body").value = responseText;
+        // 원본 요청/응답 텍스트를 전역 변수에 저장
+        window.originalRequestText = requestText;
+        window.originalResponseText = responseText;
+        
+        // 원본 요청/응답 표시
+        document.getElementById("request-body-container").textContent = requestText;
+        document.getElementById("response-body-container").textContent = responseText;
 
         const fuzzListDiv = document.getElementById("fuzz-request-list");
         const fuzzTitleDiv = document.getElementById("fuzz-request-title");
@@ -765,14 +770,19 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             fuzzResponseText += fuzz.response_body;
         }
         
-        document.getElementById("fuzz-body").value = fuzzRequestText;
-        document.getElementById("fuzz-response").value = fuzzResponseText;
+        // 퍼징 요청/응답 텍스트를 전역 변수에 저장
+        window.fuzzRequestText = fuzzRequestText;
+        window.fuzzResponseText = fuzzResponseText;
+        
+        // 퍼징 요청/응답 표시 (diff 모드에 따라)
+        updateFuzzDisplay();
         
     } catch (err) {
         console.error("퍼징 요청 헤더 정보 조회 오류:", err);
         // 오류 발생 시 기본값 사용
-        document.getElementById("fuzz-body").value = fuzz.fuzzed_body || "";
-        document.getElementById("fuzz-response").value = fuzz.response_body || "";
+        window.fuzzRequestText = fuzz.fuzzed_body || "";
+        window.fuzzResponseText = fuzz.response_body || "";
+        updateFuzzDisplay();
     }
     
     updateEmptyPlaceholder();
@@ -833,8 +843,22 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
 }
 
 function updateEmptyPlaceholder() {
-    const emptyElements = ['fuzz-body', 'fuzz-response', 'analysis-result'];
-    emptyElements.forEach(id => {
+    // div 요소들 처리
+    const divElements = ['fuzz-body-container', 'fuzz-response-container'];
+    divElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (element.textContent.trim() === '' || element.textContent.includes('🔍 퍼징 요청을 선택하면')) {
+                element.classList.add('empty-placeholder');
+            } else {
+                element.classList.remove('empty-placeholder');
+            }
+        }
+    });
+    
+    // textarea 요소 처리
+    const textareaElements = ['analysis-result'];
+    textareaElements.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
             if (element.value.trim() === '') {
@@ -924,12 +948,18 @@ function clearAll() {
         fuzzTitleDiv.textContent = "📨 퍼징 요청 목록";
     }
     
-    document.getElementById("request-body").value = "";
-    document.getElementById("response-body").value = "";
+    document.getElementById("request-body-container").textContent = "";
+    document.getElementById("response-body-container").textContent = "";
     document.getElementById("fuzz-request-list").innerHTML = "";
-    document.getElementById("fuzz-body").value = "";
-    document.getElementById("fuzz-response").value = "";
+    document.getElementById("fuzz-body-container").textContent = "";
+    document.getElementById("fuzz-response-container").textContent = "";
     document.getElementById("analysis-result").value = "";
+    
+    // 전역 변수 초기화
+    window.originalRequestText = "";
+    window.originalResponseText = "";
+    window.fuzzRequestText = "";
+    window.fuzzResponseText = "";
     
 
     
@@ -969,4 +999,273 @@ window.addEventListener("DOMContentLoaded", () => {
 // 페이지 언로드 시 캐시 정리
 window.addEventListener("beforeunload", () => {
     vulnerabilityCache.clear();
+});
+
+// Diff 관련 함수들
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function computeLCS(originalLines, modifiedLines) {
+    const m = originalLines.length;
+    const n = modifiedLines.length;
+    
+    // DP 테이블 생성
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+    
+    // LCS 길이 계산
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (originalLines[i - 1] === modifiedLines[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+    }
+    
+    // LCS 역추적하여 diff 생성
+    const result = [];
+    let i = m, j = n;
+    
+    while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && originalLines[i - 1] === modifiedLines[j - 1]) {
+            // 같은 줄
+            result.unshift({ type: 'equal', line: originalLines[i - 1] });
+            i--;
+            j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+            // 추가된 줄
+            result.unshift({ type: 'added', line: modifiedLines[j - 1] });
+            j--;
+        } else if (i > 0) {
+            // 삭제된 줄
+            result.unshift({ type: 'removed', line: originalLines[i - 1] });
+            i--;
+        }
+    }
+    
+    return result;
+}
+
+function wordLevelDiff(originalLine, modifiedLine) {
+    const originalWords = originalLine.split(/(\s+)/);
+    const modifiedWords = modifiedLine.split(/(\s+)/);
+    
+    const lcs = computeLCS(originalWords, modifiedWords);
+    
+    let result = '';
+    for (const item of lcs) {
+        switch (item.type) {
+            case 'equal':
+                result += escapeHtml(item.line);
+                break;
+            case 'added':
+                result += `<span class="diff-added">${escapeHtml(item.line)}</span>`;
+                break;
+            case 'removed':
+                result += `<span class="diff-removed">${escapeHtml(item.line)}</span>`;
+                break;
+        }
+    }
+    return result;
+}
+
+function advancedDiff(originalText, modifiedText) {
+    const originalLines = originalText.split('\n');
+    const modifiedLines = modifiedText.split('\n');
+    
+    const diffResult = computeLCS(originalLines, modifiedLines);
+    
+    let result = '';
+    let i = 0;
+    
+    while (i < diffResult.length) {
+        const item = diffResult[i];
+        
+        if (item.type === 'equal') {
+            result += escapeHtml(item.line) + '\n';
+            i++;
+        } else if (item.type === 'removed' && i + 1 < diffResult.length && diffResult[i + 1].type === 'added') {
+            // 연속된 삭제/추가는 수정으로 처리하고 단어 단위 diff 적용
+            const removedLine = item.line;
+            const addedLine = diffResult[i + 1].line;
+            
+            // 줄의 유사도가 높으면 단어 단위 diff 적용
+            const similarity = calculateSimilarity(removedLine, addedLine);
+            if (similarity > 0.3) {
+                result += wordLevelDiff(removedLine, addedLine) + '\n';
+            } else {
+                // 유사도가 낮으면 별도 줄로 처리
+                result += `<span class="diff-removed">${escapeHtml(removedLine)}</span>\n`;
+                result += `<span class="diff-added">${escapeHtml(addedLine)}</span>\n`;
+            }
+            i += 2; // 두 항목 모두 처리했으므로 2씩 증가
+        } else {
+            // 단순 추가 또는 삭제
+            switch (item.type) {
+                case 'added':
+                    result += `<span class="diff-added">${escapeHtml(item.line)}</span>\n`;
+                    break;
+                case 'removed':
+                    result += `<span class="diff-removed">${escapeHtml(item.line)}</span>\n`;
+                    break;
+            }
+            i++;
+        }
+    }
+    
+    return result;
+}
+
+function calculateSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) {
+        return 1.0;
+    }
+    
+    const editDistance = levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+}
+
+function levenshteinDistance(str1, str2) {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+    
+    for (let i = 0; i <= str1.length; i++) {
+        matrix[0][i] = i;
+    }
+    
+    for (let j = 0; j <= str2.length; j++) {
+        matrix[j][0] = j;
+    }
+    
+    for (let j = 1; j <= str2.length; j++) {
+        for (let i = 1; i <= str1.length; i++) {
+            const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(
+                matrix[j][i - 1] + 1,     // deletion
+                matrix[j - 1][i] + 1,     // insertion
+                matrix[j - 1][i - 1] + indicator // substitution
+            );
+        }
+    }
+    
+    return matrix[str2.length][str1.length];
+}
+
+function updateFuzzDisplay() {
+    const requestDiffToggle = document.getElementById("fuzz-request-diff-toggle");
+    const responseDiffToggle = document.getElementById("fuzz-response-diff-toggle");
+    
+    const requestContainer = document.getElementById("fuzz-body-container");
+    const responseContainer = document.getElementById("fuzz-response-container");
+    
+    // 퍼징 요청 표시
+    if (window.fuzzRequestText) {
+        if (requestDiffToggle.classList.contains('active') && window.originalRequestText) {
+            requestContainer.innerHTML = advancedDiff(window.originalRequestText, window.fuzzRequestText);
+        } else {
+            requestContainer.textContent = window.fuzzRequestText;
+        }
+    } else {
+        requestContainer.textContent = "🔍 퍼징 요청을 선택하면\n요청 전체가 표시됩니다";
+    }
+    
+    // 퍼징 응답 표시
+    if (window.fuzzResponseText) {
+        if (responseDiffToggle.classList.contains('active') && window.originalResponseText) {
+            responseContainer.innerHTML = advancedDiff(window.originalResponseText, window.fuzzResponseText);
+        } else {
+            responseContainer.textContent = window.fuzzResponseText;
+        }
+    } else {
+        responseContainer.textContent = "📥 퍼징 요청을 선택하면\n응답 전체가 표시됩니다";
+    }
+}
+
+// 스크롤 동기화 관련 변수
+let isScrollSyncing = false;
+let scrollSyncEnabled = true;
+
+// 스크롤 동기화 함수
+function syncScroll(source, target) {
+    if (isScrollSyncing || !scrollSyncEnabled) return;
+    
+    isScrollSyncing = true;
+    target.scrollTop = source.scrollTop;
+    target.scrollLeft = source.scrollLeft;
+    
+    // 다음 프레임에서 플래그 해제
+    requestAnimationFrame(() => {
+        isScrollSyncing = false;
+    });
+}
+
+// 스크롤 동기화 토글 함수
+function toggleScrollSync() {
+    scrollSyncEnabled = !scrollSyncEnabled;
+    const syncButton = document.getElementById('scroll-sync-toggle');
+    
+    if (scrollSyncEnabled) {
+        syncButton.classList.add('active');
+        syncButton.title = '스크롤 동기화 비활성화';
+    } else {
+        syncButton.classList.remove('active');
+        syncButton.title = '스크롤 동기화 활성화';
+    }
+}
+
+// 스크롤 동기화 설정
+function setupScrollSync() {
+    const originalRequest = document.getElementById('request-body-container');
+    const fuzzRequest = document.getElementById('fuzz-body-container');
+    const originalResponse = document.getElementById('response-body-container');
+    const fuzzResponse = document.getElementById('fuzz-response-container');
+    
+    // 원본 요청 ↔ 퍼징 요청 스크롤 동기화
+    originalRequest.addEventListener('scroll', function() {
+        syncScroll(this, fuzzRequest);
+    });
+    
+    fuzzRequest.addEventListener('scroll', function() {
+        syncScroll(this, originalRequest);
+    });
+    
+    // 원본 응답 ↔ 퍼징 응답 스크롤 동기화
+    originalResponse.addEventListener('scroll', function() {
+        syncScroll(this, fuzzResponse);
+    });
+    
+    fuzzResponse.addEventListener('scroll', function() {
+        syncScroll(this, originalResponse);
+    });
+}
+
+// Diff 토글 버튼 이벤트 리스너 추가
+document.addEventListener('DOMContentLoaded', function() {
+    // 스크롤 동기화 설정
+    setupScrollSync();
+    
+    // 스크롤 동기화 초기 상태 설정
+    const syncButton = document.getElementById('scroll-sync-toggle');
+    syncButton.classList.add('active');
+    syncButton.title = '스크롤 동기화 비활성화';
+    
+    // 스크롤 동기화 토글 버튼 이벤트
+    syncButton.addEventListener('click', toggleScrollSync);
+    
+    // Diff 토글 버튼 이벤트
+    document.getElementById('fuzz-request-diff-toggle').addEventListener('click', function() {
+        this.classList.toggle('active');
+        updateFuzzDisplay();
+    });
+    
+    document.getElementById('fuzz-response-diff-toggle').addEventListener('click', function() {
+        this.classList.toggle('active');
+        updateFuzzDisplay();
+    });
 });
