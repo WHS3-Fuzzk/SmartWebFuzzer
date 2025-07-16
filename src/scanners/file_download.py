@@ -33,6 +33,7 @@ from db_writer import (
     insert_vulnerability_scan_result,
 )
 from scanners.base import BaseScanner
+from scanners.utils import to_fuzzed_request_dict, to_fuzzed_response_dict
 
 
 def remove_nul(text: Any) -> Any:
@@ -362,7 +363,7 @@ class FileDownloadScanner(BaseScanner):
             self.vulnerability_name,
             result_payload,
         )
-        res_dict = to_fuzzed_response_dict(result)
+        res_dict = to_fuzzed_response_dict(result, remove_null=True)
 
         fuzzed_request_id = insert_fuzzed_request(req_dict)
         insert_fuzzed_response(res_dict, fuzzed_request_id)
@@ -450,61 +451,4 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
         "payload": payload,
         "evidence": evidence,
         "success": success,
-    }
-
-
-def to_fuzzed_request_dict(
-    fuzzing_request: RequestData,
-    original_request_id: int,
-    scanner: str,
-    payload: str,
-) -> dict:
-    """
-    변조된 요청 정보를 DB에 저장 가능한 딕셔너리 형태로 변환합니다.
-
-    - 원본 요청 ID, 스캐너 이름, 페이로드, 메타 정보, 헤더, 쿼리, 바디 포함
-    """
-    meta = fuzzing_request["meta"]
-    headers = fuzzing_request.get("headers") or []
-    headers_dict = {h["key"]: h["value"] for h in headers}
-    return {
-        "original_request_id": original_request_id,
-        "scanner": scanner,
-        "payload": payload,
-        "is_http": meta.get("is_http"),
-        "http_version": meta.get("http_version"),
-        "domain": meta.get("domain"),
-        "path": meta.get("path"),
-        "method": meta.get("method"),
-        "timestamp": meta.get("timestamp"),
-        "headers": headers_dict,
-        "query": fuzzing_request.get("query_params"),
-        "body": fuzzing_request.get("body"),
-    }
-
-
-def to_fuzzed_response_dict(fuzzed_response: dict) -> dict:
-    """
-    변조된 응답 정보를 DB에 저장 가능한 딕셔너리 형태로 변환합니다.
-
-    - Content-Type, 인코딩, 길이 등 응답 헤더 정보 및 본문 내용을 포함
-    - 널 문자 제거 후 body 필드 포함
-    """
-    headers = fuzzed_response.get("headers", {}) or {}
-    content_type = headers.get("Content-Type", "")
-    charset = None
-    if "charset=" in content_type:
-        charset = content_type.split("charset=")[-1].strip()
-    return {
-        "http_version": fuzzed_response.get("http_version"),
-        "status_code": fuzzed_response.get("status_code"),
-        "timestamp": fuzzed_response.get("timestamp"),
-        "headers": headers,
-        "body": {
-            "content_type": content_type,
-            "charset": charset,
-            "content_length": headers.get("Content-Length"),
-            "content_encoding": headers.get("Content-Encoding"),
-            "body": remove_nul(fuzzed_response.get("body")),
-        },
     }

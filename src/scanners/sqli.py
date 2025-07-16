@@ -19,8 +19,10 @@ from db_writer import (
     insert_vulnerability_scan_result,
 )
 from scanners.base import BaseScanner
+from scanners.utils import to_fuzzed_request_dict, to_fuzzed_response_dict
 from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 from typedefs import RequestData, Body
+
 
 DB_ERRORS: Dict[str, List[str]] = {
     "MySQL": [
@@ -238,7 +240,9 @@ class SqliScanner(BaseScanner):
                         frq, request_id, self.vulnerability_name, payload
                     )
                 )
-                insert_fuzzed_response(to_fuzzed_response_dict(raw), fuzz_req_id)
+                insert_fuzzed_response(
+                    to_fuzzed_response_dict(raw, remove_null=True), fuzz_req_id
+                )
 
                 print("[SQL Injection 탐지됨]")
                 print(f" - URL: {url}\n - 파라미터: {key}\n - 입력값: {payload}")
@@ -276,49 +280,3 @@ class SqliScanner(BaseScanner):
                 traceback.print_exc()
 
         return results
-
-
-def to_fuzzed_request_dict(
-    fuzzing_request: RequestData, original_request_id: int, scanner: str, payload: str
-) -> Dict[str, Any]:
-    """퍼징 요청 데이터를 DB 저장용 딕셔너리로 변환"""
-    meta = fuzzing_request.get("meta") or {}
-    headers = {
-        h.get("key"): h.get("value") for h in (fuzzing_request.get("headers") or [])
-    }
-    return {
-        "original_request_id": original_request_id,
-        "scanner": scanner,
-        "payload": payload,
-        "is_http": meta.get("is_http"),
-        "http_version": meta.get("http_version"),
-        "domain": meta.get("domain"),
-        "path": meta.get("path"),
-        "method": meta.get("method"),
-        "timestamp": meta.get("timestamp"),
-        "headers": headers,
-        "query": fuzzing_request.get("query_params"),
-        "body": fuzzing_request.get("body"),
-    }
-
-
-def to_fuzzed_response_dict(fuzzed_response: Dict[str, Any]) -> Dict[str, Any]:
-    """퍼징 응답 데이터를 DB 저장용 딕셔너리로 변환"""
-    headers = fuzzed_response.get("headers") or {}
-    content_type = headers.get("Content-Type", "")
-    charset = None
-    if "charset=" in content_type:
-        charset = content_type.split("charset=")[-1].strip()
-    return {
-        "http_version": fuzzed_response.get("http_version"),
-        "status_code": fuzzed_response.get("status_code"),
-        "timestamp": fuzzed_response.get("timestamp"),
-        "headers": headers,
-        "body": {
-            "content_type": content_type,
-            "charset": charset,
-            "content_length": headers.get("Content-Length"),
-            "content_encoding": headers.get("Content-Encoding"),
-            "body": (fuzzed_response.get("body") or "").replace("\x00", ""),
-        },
-    }
