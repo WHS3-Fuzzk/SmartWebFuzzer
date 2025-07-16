@@ -75,9 +75,9 @@ def is_same_file_by_name_and_size(file1: str, file2: str) -> bool:
         same_size = size1 == size2
 
         print(
-            f"[DEBUG] 파일 이름 비교: '{name1}' in '{name2}' or vice versa → {name_contained}"
+            f"파일 이름 비교: '{name1}' in '{name2}' or vice versa → {name_contained}"
         )
-        print(f"[DEBUG] 파일 크기 비교: {size1} vs {size2} → {same_size}")
+        print(f"파일 크기 비교: {size1} vs {size2} → {same_size}")
 
         return name_contained and same_size
     except Exception as e:
@@ -185,9 +185,7 @@ class FileDownloadScanner(BaseScanner):
 
         try:
             normal_response = send_fuzz_request(request)
-            print(f"[DEBUG] 정상 응답 상태코드: {normal_response.get('status_code')}")
-            print(f"[DEBUG] 정상 응답 바디 타입: {type(normal_response.get('body'))}")
-            print(f"[DEBUG] 정상 응답 바디 내용: {normal_response.get('body')}")
+
         except Exception as e:
             print(f"[ERROR] 정상 요청 실패: {e}")
             return []
@@ -217,14 +215,10 @@ class FileDownloadScanner(BaseScanner):
             file_path = os.path.join(download_dir, f"original_{self.request_id}.bin")
             with open(file_path, "wb") as f:
                 f.write(normal_body)
-            print(f"[DEBUG] 정상 응답 파일 저장됨 → {file_path}")
+            print(f"정상 응답 파일 저장됨 → {file_path}")
         except Exception as e:
             print(f"[ERROR] 정상 응답 파일 저장 실패: {e}")
             return []
-
-        print(
-            f"[DEBUG] 정상 응답 해시: {_body_hash(normal_body)} / 길이: {len(normal_body)}"
-        )
 
         results = []
         seen = set()
@@ -265,7 +259,7 @@ class FileDownloadScanner(BaseScanner):
             try:
                 fuzz_response = send_fuzz_request(fuzz_request)
                 print(
-                    f"[DEBUG] 퍼징 응답 수신 성공 → status: {fuzz_response.get('status_code')}"
+                    f"퍼징 응답 수신 성공 → status: {fuzz_response.get('status_code')}"
                 )
             except (RequestException, Exception) as e:
                 print(f"[ERROR] 퍼징 요청 실패 (예외: {type(e).__name__}): {e}")
@@ -274,9 +268,9 @@ class FileDownloadScanner(BaseScanner):
             # 비교 및 성공 여부 판단
             is_same = False  # STAGE 1용
 
-            print(f"[DEBUG] 현재 stage 값: {stage}")
+            print(f"현재 stage 값: {stage}")
             if stage == 1:
-                print(f"[DEBUG] STAGE 1 → 파일 다운로드 기반 비교 진입함")
+                print(f"STAGE 1 → 파일 다운로드 기반 비교 진입함")
 
                 download_dir = os.path.expanduser("~/Downloads")
                 original_file_path = os.path.join(
@@ -307,7 +301,7 @@ class FileDownloadScanner(BaseScanner):
                 if isinstance(fuzz_body, str):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
                 if fuzz_body and len(fuzz_body) > 0:
-                    print(f"[DEBUG] STAGE {stage} → 다운로드 응답 감지됨")
+                    print(f"STAGE {stage} → 다운로드 응답 감지됨")
                     success = True
 
             # Celery 분석 요청
@@ -322,7 +316,7 @@ class FileDownloadScanner(BaseScanner):
                     args=[{**fuzz_response, "extra": extra}]
                 )
                 result = async_result.get()
-                print(f"[DEBUG] Celery 분석 결과 수신 완료 → {result}")
+                print(f"Celery 분석 결과 수신 완료 → {result}")
             except (CeleryTimeoutError, TaskRevokedError) as e:
                 print(f"[!] 분석 태스크 시간 초과 또는 취소됨 → payload: {payload}")
                 result = {}
