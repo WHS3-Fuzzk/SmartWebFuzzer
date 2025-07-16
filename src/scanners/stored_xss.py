@@ -6,7 +6,9 @@ Stored XSS 취약점 스캐너 모듈입니다.
 """
 
 import urllib.parse
-
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.policy import default
 import json
 import copy
 from typing import Any, Dict, Iterable, List
@@ -147,8 +149,91 @@ class StoredXSS(BaseScanner):
                     print(f"{new_request}")
                     print("------------------------")
                     yield new_request
-        # TODO: json, multipart/form-data 등은 추후 구현 필요
+        elif "multipart/form-data" in content_type:
+            # boundary 추출
+            boundary = ""
+            for h in headers:
+                if h.get("key", "").lower() == "content-type":
+                    ct = h.get("value", "")
+                    if "boundary=" in ct:
+                        boundary = ct.split("boundary=")[-1]
+                        break
+            if not boundary:
+                print("boundary 정보 없음")
+                return
 
+            # multipart 파싱
+            msg = BytesParser(policy=default).parsebytes(
+                b"Content-Type: multipart/form-data; boundary=%b\r\n\r\n%b" % (
+                    boundary.encode(), raw_body.encode("utf-8"))
+            )
+
+            parts = []
+            # 파트별로 하나씩 페이로드 삽입된 요청 생성
+            for i, part in enumerate(msg.iter_parts()):
+                # 파일 파트는 건너뜀
+                if part.get_content_disposition() == "form-data" and not part.get_filename():
+                    # 기존 name 추출
+                    cd = part.get("Content-Disposition", "")
+                    name = ""
+                    for piece in cd.split(";"):
+                        piece = piece.strip()
+                        if piece.startswith("name="):
+                            name = piece.split("=")[-1].strip('"')
+                            break
+                    if not name:
+                        print(f"form-data 파트에 name 없음: {cd}")
+                        continue
+
+                    # 모든 파트 복사
+                    new_parts = []
+                    for j, orig_part in enumerate(msg.iter_parts()):
+                        if i == j:
+                            # 페이로드 삽입 파트
+                            new_part = EmailMessage()
+                            new_part.add_header(
+                                "Content-Disposition", f'form-data; name="{name}"'
+                            )
+                            # 원본 Content-Type 복사 (없으면 생략)
+                            orig_ct = orig_part.get("Content-Type")
+                            if orig_ct:
+                                new_part.add_header("Content-Type", orig_ct)
+                            # 페이로드 삽입
+                            payload = self.get_payload(request_id, i)
+                            new_part.set_payload(payload)
+                            new_parts.append(new_part)
+                        else:
+                            # 원본 파트 그대로 복사
+                            new_parts.append(orig_part)
+
+                    # 새 multipart 메시지 생성
+                    new_msg = EmailMessage()
+                    new_msg.set_type("multipart/form-data")
+                    new_msg.set_boundary(boundary)
+                    for p in new_parts:
+                        new_msg.attach(p)
+
+                    new_body_str = new_msg.as_bytes().split(
+                        b"\r\n\r\n", 1)[-1].decode("utf-8", errors="replace")
+                    new_content_length = str(len(new_body_str.encode("utf-8")))
+
+                    new_request = copy.deepcopy(request)
+                    new_request["headers"] = [h.copy() for h in headers]
+                    for h in new_request["headers"]:
+                        if h["key"].lower() == "content-length":
+                            h["value"] = new_content_length
+                    new_request["body"] = body.copy()
+                    new_request["body"]["body"] = new_body_str
+                    new_request["body"]["content_length"] = int(new_content_length)
+                    new_request["extra"] = {
+                        "fuzzed_param": name,
+                        "payload": payload,
+                        "param_id": i,
+                        "type": "stored_xss",
+                    }
+                    print(f"{new_request}")
+                    print("------------------------")
+                    yield new_request
     def run(
         self,
         request_id: int,
