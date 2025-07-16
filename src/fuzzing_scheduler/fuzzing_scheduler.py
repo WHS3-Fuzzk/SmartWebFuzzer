@@ -42,14 +42,13 @@ celery_app = Celery(
     # TODO: imports에 스캐너 모듈을 추가하여 자동으로 로드되도록 설정 필요
     imports=[
         "fuzzing_scheduler.fuzzing_scheduler",
-        "scanners.reflected_xss",  # 예시 스캐너 모듈
-        "scanners.example",  # 예시 스캐너 모듈
-        "scanners.ssrf",  # SQL Injection 스캐너 모듈
-        "scanners.stored_xss",  # Stored XSS 스캐너 모듈
-        "scanners.dom_xss",  # Dom XSS 스캐너 모듈
+        "scanners.reflected_xss",  # Reflected XSS 스캐너
+        "scanners.ssrf",  # SQL Injection 스캐너
+        "scanners.stored_xss",  # Stored XSS 스캐너
+        "scanners.dom_xss",  # Dom XSS 스캐너
         "scanners.file_download",  # File Download 스캐너
         "scanners.command_injection",  # Command Injection 스캐너
-        "scanners.sqli",  # Sqli 스캐너 모듈
+        "scanners.sqli",  # Sql Injection 스캐너
     ],
 )
 # celery_app.autodiscover_tasks(["scanners"])
