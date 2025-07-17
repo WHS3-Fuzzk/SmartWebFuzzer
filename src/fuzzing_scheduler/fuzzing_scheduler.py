@@ -111,27 +111,37 @@ def start_celery_worker(
         return None
 
 
-def start_celery_workers() -> List[subprocess.Popen]:
-    """Celery 워커들을 백그라운드에서 시작"""
-    print("[INFO] Celery 워커 시작 중...")
+def start_celery_workers(workers: int = 4) -> List[subprocess.Popen]:
+    """Celery 워커들을 백그라운드에서 시작
 
-    workers = []
-    worker_configs = [("fuzz_request", 6), ("analyze_response", 4)]
+    Args:
+        workers: 퍼징 요청을 보내는 워커 수 (기본값: 4)
+    """
+    print(f"[INFO] Celery 워커 시작 중... (워커 수: {workers})")
+
+    workers_list = []
+
+    # 퍼징 요청 워커 설정
+
+    worker_configs = [
+        ("fuzz_request", workers),  # 퍼징 요청을 처리하는 워커
+        ("analyze_response", 2),
+    ]
 
     for queue_name, concurrency in worker_configs:
         worker = start_celery_worker(queue_name, concurrency)
         if worker:
-            workers.append(worker)
+            workers_list.append(worker)
 
     # 워커들이 제대로 시작될 때까지 잠시 대기
     time.sleep(3)
 
     # 워커 상태 확인
-    for worker in workers:
+    for worker in workers_list:
         if worker.poll() is not None:
             print("[ERROR] celery 워커가 실행 실패")
 
-    return workers
+    return workers_list
 
 
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")

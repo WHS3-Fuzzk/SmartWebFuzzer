@@ -1,3 +1,4 @@
+# pylint: skip-file
 """스마트 웹 퍼저의 시작점 모듈
 
 동작 순서:
@@ -17,11 +18,13 @@ import threading
 import subprocess
 import argparse
 from selenium.common.exceptions import WebDriverException
+from InquirerPy import inquirer
 from db_init import initialize_databases
 import proxy
 from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
 from dashboard.app import app, close_connection_pool
+from scanners import _REGISTRY
 
 
 def parse_arguments():
@@ -38,20 +41,6 @@ def parse_arguments():
         type=str,
         help="타겟 URL (쉼표로 구분하여 여러 개 지정 가능)",
         metavar="URL",
-    )
-
-    parser.add_argument(
-        "--enable",
-        type=str,
-        help="활성화할 스캐너 목록 (쉼표로 구분)",
-        metavar="SCANNERS",
-    )
-
-    parser.add_argument(
-        "--disable",
-        type=str,
-        help="비활성화할 스캐너 목록 (쉼표로 구분)",
-        metavar="SCANNERS",
     )
 
     parser.add_argument(
@@ -94,23 +83,44 @@ def main():
     if args.url:
         urls = [u.strip() for u in args.url.split(",") if u.strip()]
     else:
-        input_urls = input(
-            "타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):\n> "
-        )
+        input_urls = inquirer.text(
+            message="타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):",
+            validate=lambda text: bool(text.strip())
+            or "URL을 1개 이상 입력해야 합니다.",
+            qmark="▶",
+        ).execute()
         urls = [u.strip() for u in input_urls.split(",") if u.strip()]
 
     if not urls:
         print("URL이 입력되지 않았습니다. 종료합니다.")
         return
 
-    # 활성화/비활성화할 스캐너 처리 (실제 구현은 하지 않음)
-    if args.enable:
-        enabled_scanners = [s.strip() for s in args.enable.split(",")]
-        print(f"[INFO] 활성화된 스캐너: {', '.join(enabled_scanners)}")
+    # --- 스캐너 선택 UI (InquirerPy) ---
+    scanner_names = list(_REGISTRY.keys())
+    choices = [{"name": name, "value": name, "enabled": True} for name in scanner_names]
+    print(
+        "\n활성화할 스캐너를 선택하세요 (스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료)\n"
+    )
+    selected = inquirer.checkbox(
+        message="스캐너 목록:",
+        choices=choices,
+        instruction="스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료",
+        cycle=True,
+        pointer="→",
+        qmark="▶",
+    ).execute()
+    if not selected:
+        print("[ERROR] 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
+        return
 
-    if args.disable:
-        disabled_scanners = [s.strip() for s in args.disable.split(",")]
-        print(f"[INFO] 비활성화된 스캐너: {', '.join(disabled_scanners)}")
+    # 선택된 스캐너만 _REGISTRY에 남기고 나머지는 삭제
+    for name in list(_REGISTRY.keys()):
+        if name not in selected:
+            del _REGISTRY[name]
+    print(f"[INFO] 활성화된 스캐너: {', '.join(selected)}")
+    print(
+        f"[INFO] 비활성화된 스캐너: {', '.join([s for s in scanner_names if s not in selected])}"
+    )
 
     # 워커 및 성능 설정
     print(f"[INFO] 퍼징 요청 워커 수: {args.workers}")
@@ -122,14 +132,11 @@ def main():
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
     os.environ["TARGET_DOMAINS"] = ",".join(domains)
 
-    # TODO: 인프라 docker-compose 실행
-
     # 데이터베이스 초기화
     db = initialize_databases()
 
     # Celery 워커 시작
-    # TODO: 퍼징 워커 설정값들(workers, threads)을 전달하도록 구현 필요
-    celery_workers = start_celery_workers()
+    celery_workers = start_celery_workers(workers=args.workers)
 
     # 대시보드 모듈 실행 (별도 스레드)
     print("[INFO] 대시보드 서버 시작 중... (http://localhost:5000)")
@@ -142,7 +149,9 @@ def main():
     dashboard_thread.start()
 
     print("[INFO] 스캐너 트리거 시작 중...")
-    threading.Thread(target=ScannerTrigger().run, daemon=True).start()
+    threading.Thread(
+        target=ScannerTrigger(max_workers=args.threads).run, daemon=True
+    ).start()
 
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
@@ -262,10 +271,6 @@ def ascii_art(show_manual=False):
         "타겟 설정:",
         "  -url URL          타겟 URL (쉼표로 구분하여 여러 개 지정)",
         "",
-        "스캐너 제어:",
-        "  --enable MODULES  활성화할 모듈 (쉼표로 구분)",
-        "  --disable MODULES 비활성화할 모듈 (쉼표로 구분)",
-        "",
         "성능 옵션:",
         "  -w, --workers NUM 퍼징 요청 워커 수 (기본값: 4)",
         "  -t, --threads NUM 스레드 수 (기본값: 8)",
@@ -275,24 +280,22 @@ def ascii_art(show_manual=False):
         "  -h, --help        이 도움말 표시",
         "",
         "취약점 스캔 모듈:",
-        "  xss-reflected    Reflected XSS 스캔",
-        "  xss-dom          DOM-based XSS 스캔",
-        "  xss-stored       Stored XSS 스캔",
-        "  sqli             SQL Injection 스캔",
-        "  cmdi             Command Injection 스캔",
-        "  ssrf             SSRF 스캔",
-        "  file-upload      File Upload 취약점 스캔",
-        "  file-download    File Download 취약점 스캔",
-        "",
-        "사용 예시:",
-        "  python main.py -url https://example.com",
-        "  python main.py -url https://example.com --enable xss-reflected,sqli",
-        "  python main.py -url https://example.com  --workers 6 --threads 12",
-        "",
-        "",
-        "",
-        "",
     ]
+    # 동적으로 스캐너 이름 추가
+    for name in _REGISTRY:
+        manual_lines.append(f"  - {name}")
+    manual_lines.extend(
+        [
+            "",
+            "사용 예시:",
+            "  python main.py -url https://example.com",
+            "  python main.py --workers 6 --threads 12",
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
 
     # 두 리스트의 최대 길이 계산
     max_lines = max(len(art_lines), len(manual_lines))

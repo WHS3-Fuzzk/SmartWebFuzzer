@@ -23,17 +23,20 @@ class ScannerTrigger:
     - last_processed_id: 마지막으로 처리한 요청의 ID
     """
 
-    def __init__(self, poll_interval: int = 3, batch_size: int = 10):
+    def __init__(
+        self, poll_interval: int = 3, batch_size: int = 10, max_workers: int = 8
+    ):
         self.db_reader = DBReader()
         self.poll_interval = poll_interval
         self.batch_size = batch_size
+        self.max_workers = max_workers
         self.next_request_id = 1
 
-    # 스캐너 저장소: scanners 모듈에서 스캐너를 가져오는 함수
+    # 스캐너 저장소: scanners 모듈에서 활성화된 스캐너를 가져오는 함수
     def load_scanners(self) -> List[BaseScanner]:
         """
-        load_scanners 메서드는 scanners 모듈에서 스캐너를 가져옵니다.
-        - scanners 모듈에서 _REGISTRY 딕셔너리를 통해 스캐너 클래스를 가져옵니다.
+        load_scanners 메서드는 scanners 모듈에서 활성화된 스캐너를 가져옵니다.
+        - _REGISTRY 딕셔너리를 통해 스캐너 클래스를 가져옵니다.
         """
         for name, cls in _REGISTRY.items():
             print(f"Loaded scanner: {name} -> {cls}")
@@ -44,13 +47,13 @@ class ScannerTrigger:
         run 메서드는 DB에서 요청을 주기적으로 가져와 스캐너를 실행합니다.
         - DB에서 요청 ID를 가져오고, 해당 ID의 요청 데이터를 읽습니다.
         - 요청 데이터가 없으면 다음 ID로 넘어갑니다.
-        - 요청 데이터가 있으면 스캐너를 실행합니다.
+        - 요청 데이터가 있으면 활성화된 스캐너를 실행합니다.
         - 마지막으로 처리한 요청 ID를 업데이트합니다.
         - ThreadPoolExecutor가 while True 바깥에 있어, 스레드 풀은 한 번만 생성되고
           각 루프에서 작업을 submit한 뒤 결과를 기다리지 않고 바로 sleep에 들어갑니다.
         """
         scanners = self.load_scanners()
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             while True:
                 ids = self.db_reader.fetch_ids(self.next_request_id, self.batch_size)
                 if ids:

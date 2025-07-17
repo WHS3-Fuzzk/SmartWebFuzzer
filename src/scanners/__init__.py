@@ -30,4 +30,3 @@ def _discover_scanners() -> None:
 
 
 _discover_scanners()
-# print(f"발견된 취약점 스캐너 목록: {list(_REGISTRY.keys())}")
