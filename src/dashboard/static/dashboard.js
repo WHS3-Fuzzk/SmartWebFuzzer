@@ -1009,6 +1009,7 @@ function escapeHtml(text) {
 }
 
 function computeLCS(originalLines, modifiedLines) {
+    
     const m = originalLines.length;
     const n = modifiedLines.length;
     
@@ -1051,8 +1052,12 @@ function computeLCS(originalLines, modifiedLines) {
 }
 
 function wordLevelDiff(originalLine, modifiedLine) {
-    const originalWords = originalLine.split(/(\s+)/);
-    const modifiedWords = modifiedLine.split(/(\s+)/);
+
+    // path/query 구분자와 공백을 단어 분리 기준으로 사용
+
+    const splitRegex = /([\s&=]+)/;
+    const originalWords = originalLine.split(splitRegex).filter(Boolean);
+    const modifiedWords = modifiedLine.split(splitRegex).filter(Boolean);
     
     const lcs = computeLCS(originalWords, modifiedWords);
     
@@ -1073,6 +1078,32 @@ function wordLevelDiff(originalLine, modifiedLine) {
     return result;
 }
 
+function requestLineDiff(originalLine, modifiedLine) {
+    // HTTP 요청 라인: METHOD PATH?QUERY HTTP/1.1
+    // ex: GET /AJAX/infoartist.php?id=2 HTTP/1.1
+    const reqLineRegex = /^(\w+)\s+([^\s\?]+)(\?[^\s]+)?\s+(HTTP\/\d\.\d)$/;
+    const origMatch = originalLine.match(reqLineRegex);
+    const modMatch = modifiedLine.match(reqLineRegex);
+    if (origMatch && modMatch) {
+        const [, origMethod, origPath, origQuery = '', origVersion] = origMatch;
+        const [, modMethod, modPath, modQuery = '', modVersion] = modMatch;
+        // path가 다르면 diff 의미가 없으므로, path가 다르면 기존 방식 사용
+        if (origPath !== modPath) {
+            return wordLevelDiff(originalLine, modifiedLine);
+        }
+        // 쿼리 파라미터만 diff 적용
+        let queryDiff = '';
+        if (origQuery || modQuery) {
+            // ?는 제외하고 비교
+            queryDiff = '?' + wordLevelDiff(origQuery.slice(1) || '', modQuery.slice(1) || '');
+        }
+        return `${origMethod} ${origPath}${queryDiff} ${origVersion}`;
+    } else {
+        // HTTP 요청 라인 형식이 아니면 기존 방식 사용
+        return wordLevelDiff(originalLine, modifiedLine);
+    }
+}
+
 function advancedDiff(originalText, modifiedText) {
     const originalLines = originalText.split('\n');
     const modifiedLines = modifiedText.split('\n');
@@ -1089,20 +1120,23 @@ function advancedDiff(originalText, modifiedText) {
             result += escapeHtml(item.line) + '\n';
             i++;
         } else if (item.type === 'removed' && i + 1 < diffResult.length && diffResult[i + 1].type === 'added') {
-            // 연속된 삭제/추가는 수정으로 처리하고 단어 단위 diff 적용
+            // 연속된 삭제/추가는 수정으로 처리
             const removedLine = item.line;
             const addedLine = diffResult[i + 1].line;
-            
-            // 줄의 유사도가 높으면 단어 단위 diff 적용
-            const similarity = calculateSimilarity(removedLine, addedLine);
-            if (similarity > 0.3) {
-                result += wordLevelDiff(removedLine, addedLine) + '\n';
+            // 첫 줄(요청 라인)만 특수 처리
+            if (i === 0) {
+                result += requestLineDiff(removedLine, addedLine) + '\n';
             } else {
-                // 유사도가 낮으면 별도 줄로 처리
-                result += `<span class="diff-removed">${escapeHtml(removedLine)}</span>\n`;
-                result += `<span class="diff-added">${escapeHtml(addedLine)}</span>\n`;
+                // 줄의 유사도가 높으면 wordLevelDiff 적용
+                const similarity = calculateSimilarity(removedLine, addedLine);
+                if (similarity > 0.3) {
+                    result += wordLevelDiff(removedLine, addedLine) + '\n';
+                } else {
+                    result += `<span class="diff-removed">${escapeHtml(removedLine)}</span>\n`;
+                    result += `<span class="diff-added">${escapeHtml(addedLine)}</span>\n`;
+                }
             }
-            i += 2; // 두 항목 모두 처리했으므로 2씩 증가
+            i += 2;
         } else {
             // 단순 추가 또는 삭제
             switch (item.type) {
