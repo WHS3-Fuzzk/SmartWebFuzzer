@@ -9,6 +9,12 @@ let selectedScanner = ""; // 선택된 스캐너 종류
 const vulnerabilityCache = new Map();
 const CACHE_DURATION = 3000; // 5초 캐시
 
+// 스캐너별 랜덤 색상 매핑
+const scannerColorMap = {};
+function getRandomColor() {
+    const hue = Math.floor(Math.random() * 360);
+    return `hsl(${hue}, 90%, 50%)`;
+}
 
 
 function updateTimerDisplay() {
@@ -615,14 +621,11 @@ async function loadRequestDetail(requestId) {
                 const content = document.createElement("div");
                 content.classList.add("request-item-content");
 
-                // 스캐너별 색상 지정
-                const scannerColors = {
-                    'example': '#e74c3c',
-                    'ssrf': '#f39c12',
-                    'xss': '#9b59b6',
-                    'sqli': '#e67e22'
-                };
-                const scannerColor = scannerColors[fuzz.scanner] || '#95a5a6';
+                // 스캐너별 색상 지정 (랜덤)
+                if (!scannerColorMap[fuzz.scanner]) {
+                    scannerColorMap[fuzz.scanner] = getRandomColor();
+                }
+                const scannerColor = scannerColorMap[fuzz.scanner];
 
                 // 페이로드 길이 제한 (너무 길면 줄임)
                 const displayPayload = fuzz.payload.length > 50 
