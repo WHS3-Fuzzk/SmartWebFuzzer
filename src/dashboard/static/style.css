@@ -186,8 +186,8 @@ textarea:focus {
 
 /* 요청 라디오 항목 간격 및 스타일 */
 .request-item {
-    margin-bottom: 8px;
-    padding: 8px;
+    margin-bottom: 2px;
+    padding: 2px;
     border-radius: 6px;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     cursor: pointer;
