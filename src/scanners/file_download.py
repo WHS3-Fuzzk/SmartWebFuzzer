@@ -148,7 +148,9 @@ class FileDownloadScanner(BaseScanner):
         self.current_stage에 따라 payload 선택.
         """
         query_params = cast(List[QueryParam], request.get("query_params") or [])
-        base_path = request.get("path", "").split("?")[0]
+        full_path = request.get("meta", {}).get("path")
+        base_path = full_path.split("?")[0] or "/"
+
         param_key_set = {"filename", "file", "filepath"}
 
         payloads_by_stage = {
@@ -162,10 +164,10 @@ class FileDownloadScanner(BaseScanner):
                 query_params, param_key_set, payload
             )
             query_str = "&".join(f"{p['key']}={p['value']}" for p in mutated_params)
-            new_path = f"{base_path}?{query_str}"
+            new_path = f"{base_path}?{query_str}" if query_str else base_path
 
             mutated = copy.deepcopy(request)
-            mutated["query_params"] = cast(List[QueryParam], mutated_params)
+            mutated["query_params"] = []
             mutated["extra"] = {
                 "payload": payload,
                 "stage": stage,
@@ -181,26 +183,6 @@ class FileDownloadScanner(BaseScanner):
                 ),
             }
             mutated["meta"]["path"] = new_path
-
-            # ✅ 요청 본문 설정 (Body 타입에 맞게 구성)
-            body_payload = json.dumps(
-                {
-                    "fuzzing_stage": stage,
-                    "fuzzing_payload": payload,
-                    "target_param_keys": list(param_key_set),
-                }
-            )
-            body_bytes = body_payload.encode("utf-8")
-
-            mutated["body"] = {
-                "id": 0,
-                "request_id": self.request_id,
-                "content_type": "application/json",
-                "charset": "utf-8",
-                "content_length": len(body_bytes),
-                "content_encoding": "identity",
-                "body": body_payload,
-            }
 
             print(f"[GEN] STAGE {stage} → payload: {payload}, path: {new_path}")
             yield mutated
@@ -341,6 +323,20 @@ class FileDownloadScanner(BaseScanner):
                     print(f"STAGE {stage} → 다운로드 응답 감지됨")
                     success = True
 
+                    # ✅ 퍼징 응답 파일 저장
+                    try:
+                        download_dir = os.path.expanduser("~/Downloads")
+                        os.makedirs(download_dir, exist_ok=True)
+                        fuzz_path = os.path.join(
+                            download_dir,
+                            f"stage{stage}_{self.request_id}_{payload.replace('/', '_')}.bin",
+                        )
+                        with open(fuzz_path, "wb") as f:
+                            f.write(fuzz_body)
+                        print(f"[SAVE] 퍼징 응답 저장됨 → {fuzz_path}")
+                    except Exception as e:
+                        print(f"[ERROR] 퍼징 응답 저장 실패: {e}")
+
             # Celery 분석 요청
             result = {}
             try:
@@ -443,6 +439,10 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
 
     disp = headers.get("Content-Disposition", "").lower()
 
+    body = response.get("body", b"")
+    if isinstance(body, str):
+        body = body.encode("utf-8", errors="replace")
+
     if stage == 1:
         if is_same_file:
             success = True
@@ -456,22 +456,13 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
         if is_same_file:
             success = True
             evidence = f"2단계: 상위 경로 우회('{payload}') 시 동일 파일 다운로드됨 → 취약점 가능성 ⬆️"
+        elif body and len(body) > 0:
+            success = True
+            evidence = f"2단계: 상위 디렉터리로 접근하여 다른 파일 다운로드됨 → 취약점 가능성 ⬆️"
         else:
-            # 동일하지 않지만 다운로드는 되었음 (즉, 상위 디렉터리 접근된 것일 수 있음)
-            body = response.get("body", b"")
-            if isinstance(body, str):
-                body = body.encode("utf-8", errors="replace")
-
-            if body and len(body) > 0:
-                success = True
-                evidence = f"2단계: 상위 디렉터리로 접근하여 다른 파일 다운로드됨 → 취약점 가능성 ⬆️"
-            else:
-                evidence = f"2단계: 다운로드 실패 또는 응답 없음 → 취약 가능성 ⬇️"
+            evidence = f"2단계: 다운로드 실패 또는 응답 없음 → 취약 가능성 ⬇️"
 
     elif stage == 3:
-        body = response.get("body", b"")
-        if isinstance(body, str):
-            body = body.encode("utf-8", errors="replace")
         if "attachment" in disp:
             success = True
             evidence = f"3단계: Content-Disposition 포함된 응답 수신"
@@ -487,4 +478,8 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
         "payload": payload,
         "evidence": evidence,
         "success": success,
+        "status_code": response.get("status_code"),
+        "headers": response.get("headers"),
+        "body": response.get("body"),
+        "timestamp": datetime.now().isoformat(),
     }
