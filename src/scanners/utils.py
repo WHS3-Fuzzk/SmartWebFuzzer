@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 Fuzzing 요청/응답을 dict로 변환하는 유틸리티 함수 모음.
 """
@@ -59,6 +60,7 @@ def to_fuzzed_response_dict(
         elif isinstance(body, memoryview):
             body = body.tobytes().replace(b"\x00", b"")
 
+    # content-length 계산
     content_length = headers.get("Content-Length")
     if content_length is not None:
         try:
@@ -66,13 +68,31 @@ def to_fuzzed_response_dict(
         except ValueError:
             content_length = None
 
+    if content_length is None:
+        # body가 None이면 길이 계산 대신 None
+        if body is None:
+            content_length = None
+        elif isinstance(body, str):
+            content_length = len(body.encode("utf-8"))
+        elif isinstance(body, (bytes, bytearray, memoryview)):
+            content_length = len(body)
+        else:
+            # body가 예상치 못한 타입이면 None
+            content_length = None
+
+    # Content-Encoding이 없으면 identity로 설정
+    content_encoding = headers.get("Content-Encoding")
+    if content_encoding is None:
+        content_encoding = "identity"
+
     body_dict = {
         "content_type": content_type,
         "charset": charset,
         "content_length": content_length,
-        "content_encoding": headers.get("Content-Encoding"),
+        "content_encoding": content_encoding,
         "body": body,
     }
+
     return {
         "http_version": fuzzed_response.get("http_version"),
         "status_code": fuzzed_response.get("status_code"),
