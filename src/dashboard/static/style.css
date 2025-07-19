@@ -280,6 +280,107 @@ textarea:focus {
     font-size: 12px;
     line-height: 1.5;
     position: relative;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+.analysis-container {
+    min-height: 200px;
+    flex: 2;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    position: relative;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+/* JSON syntax highlighting 스타일 */
+.json-highlight {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.json-highlight .token.property {
+    color: #0066cc;
+    font-weight: 600;
+}
+
+.json-highlight .token.string {
+    color: #28a745;
+}
+
+.json-highlight .token.number {
+    color: #fd7e14;
+}
+
+.json-highlight .token.boolean {
+    color: #6f42c1;
+    font-weight: 600;
+}
+
+.json-highlight .token.null {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.json-highlight .token.punctuation {
+    color: #495057;
+}
+
+/* Prism.js 기본 스타일 오버라이드 */
+.json-highlight code {
+    background: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    font-size: inherit !important;
+    font-family: inherit !important;
+}
+
+/* 분석 결과 내 JSON 블록 스타일 */
+.analysis-json-block {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    position: relative;
+}
+
+.analysis-json-block::before {
+    content: "JSON";
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 /* 로딩 애니메이션 */
@@ -299,33 +400,6 @@ textarea:focus {
     border-radius: 6px;
     font-size: 14px;
     color: #666;
-}
-
-/* 스크롤바 스타일 */
-textarea::-webkit-scrollbar,
-#original-request-list::-webkit-scrollbar,
-#fuzz-request-list::-webkit-scrollbar {
-    width: 8px;
-}
-
-textarea::-webkit-scrollbar-track,
-#original-request-list::-webkit-scrollbar-track,
-#fuzz-request-list::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
-    border-radius: 4px;
-}
-
-textarea::-webkit-scrollbar-thumb,
-#original-request-list::-webkit-scrollbar-thumb,
-#fuzz-request-list::-webkit-scrollbar-thumb {
-    background-color: #bdc3c7;
-    border-radius: 4px;
-}
-
-textarea::-webkit-scrollbar-thumb:hover,
-#original-request-list::-webkit-scrollbar-thumb:hover,
-#fuzz-request-list::-webkit-scrollbar-thumb:hover {
-    background-color: #95a5a6;
 }
 
 /* Diff 하이라이팅 스타일 */
@@ -407,6 +481,163 @@ textarea::-webkit-scrollbar-thumb:hover,
     transition: border-color 0.3s ease;
 }
 
+/* 취약점 분석 결과 스타일 */
+.vulnerability-analysis {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.vulnerability-card {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.vulnerability-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.vulnerability-header {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 600;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.vulnerability-type {
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.vulnerability-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.vulnerability-table tr {
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.2s ease;
+}
+
+.vulnerability-table tr:last-child {
+    border-bottom: none;
+}
+
+.vulnerability-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.vulnerability-table td {
+    padding: 10px 16px;
+    vertical-align: top;
+}
+
+.field-label {
+    font-weight: 700;
+    color: #495057;
+    width: 100px;
+    background-color: #f8f9fa;
+    border-right: 1px solid #e9ecef;
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.field-value {
+    color: #212529;
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+.request-info {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    border: 1px solid #c8e6c9;
+    display: inline-block;
+}
+
+.method-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    border: 1px solid #bbdefb;
+}
+
+.parameter-badge {
+    background: #fff3e0;
+    color: #f57c00;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    border: 1px solid #ffe0b2;
+}
+
+.payload-code {
+    background: #f5f5f5;
+    color: #d32f2f;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 12px;
+    border: 1px solid #e0e0e0;
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.extra-info {
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    padding: 12px 16px;
+}
+
+.extra-info h4 {
+    color: #6c757d;
+    font-size: 13px;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+.json-code {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border: 1px solid #e9ecef;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 1200px) {
     body {
@@ -426,4 +657,35 @@ textarea::-webkit-scrollbar-thumb:hover,
     #analysis-result {
         min-height: 150px;
     }
+}
+
+/* 스크롤바 스타일 */
+textarea::-webkit-scrollbar,
+#original-request-list::-webkit-scrollbar,
+#fuzz-request-list::-webkit-scrollbar,
+#analysis-result::-webkit-scrollbar {
+    width: 8px;
+}
+
+textarea::-webkit-scrollbar-track,
+#original-request-list::-webkit-scrollbar-track,
+#fuzz-request-list::-webkit-scrollbar-track,
+#analysis-result::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+    border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb,
+#original-request-list::-webkit-scrollbar-thumb,
+#fuzz-request-list::-webkit-scrollbar-thumb,
+#analysis-result::-webkit-scrollbar-thumb {
+    background-color: #bdc3c7;
+    border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover,
+#original-request-list::-webkit-scrollbar-thumb:hover,
+#fuzz-request-list::-webkit-scrollbar-thumb:hover,
+#analysis-result::-webkit-scrollbar-thumb:hover {
+    background-color: #95a5a6;
 }

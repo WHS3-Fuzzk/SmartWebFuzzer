@@ -586,9 +586,9 @@ async function loadRequestDetail(requestId) {
 
             if (filteredData.length === 0) {
                 fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 필터 조건에 맞는 퍼징 요청이 없습니다.</p>";
-                document.getElementById("fuzz-body").value = "";
-                document.getElementById("fuzz-response").value = "";
-                document.getElementById("analysis-result").value = "";
+                            document.getElementById("fuzz-body").value = "";
+            document.getElementById("fuzz-response").value = "";
+            document.getElementById("analysis-result").innerHTML = "";
                 updateEmptyPlaceholder();
                 return;
             }
@@ -662,7 +662,7 @@ async function loadRequestDetail(requestId) {
             fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징 대상이 아닙니다.</p>";
             document.getElementById("fuzz-body").value = "";
             document.getElementById("fuzz-response").value = "";
-            document.getElementById("analysis-result").value = "";
+            document.getElementById("analysis-result").innerHTML = "";
             updateEmptyPlaceholder();
         }
     } catch (err) {
@@ -676,7 +676,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
     const analysisResult = document.getElementById("analysis-result");
     analysisResult.classList.add("loading");
     analysisResult.classList.remove("empty-placeholder");
-    analysisResult.value = "취약점이 탐지되지 않았습니다.";
+    analysisResult.innerHTML = "취약점이 탐지되지 않았습니다.";
     
     try {
         // 퍼징 요청의 헤더 정보를 가져와서 완전한 HTTP 메시지로 구성
@@ -804,43 +804,58 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
         analysisResult.classList.remove("loading");
         
         if (vulnResults.length > 0) {
-            let resultText = `🔍 퍼징 요청 [${fuzz.scanner}] 분석 결과:\n`;
-            resultText += `${'='.repeat(50)}\n\n`;
+            let resultHTML = `<div class="vulnerability-analysis">`;
             
             vulnResults.forEach((vuln, index) => {
-                if (index > 0) resultText += '\n' + '─'.repeat(50) + '\n\n';
+                resultHTML += `<div class="vulnerability-card">`;
+                resultHTML += `<div class="vulnerability-header">`;
+                resultHTML += `<span class="vulnerability-type">${vuln.vulnerability_name.toUpperCase()}</span>`;
+                resultHTML += `</div>`;
                 
-                // 박스 형태로 고정 정보 표시
-                resultText += `════════════════════════════════════════════════════════════════\n`;
-                resultText += `                        취약점 정보 ${index + 1}\n`;
-                resultText += `════════════════════════════════════════════════════════════════\n`;
-                resultText += `취약점      : ${vuln.vulnerability_name}\n`;
-                resultText += `도메인      : ${vuln.domain}\n`;
-                resultText += `엔드포인트  : ${vuln.endpoint}\n`;
-                resultText += `메소드      : ${vuln.method}\n`;
+                resultHTML += `<table class="vulnerability-table">`;
+                resultHTML += `<tr><td class="field-label">도메인</td><td class="field-value">${vuln.domain}</td></tr>`;
+                resultHTML += `<tr><td class="field-label">요청</td><td class="field-value">${vuln.method} ${vuln.endpoint}</td></tr>`;
                 
                 if (vuln.parameter) {
-                    resultText += `파라미터    : ${vuln.parameter}\n`;
-                }
-                if (vuln.payload) {
-                    resultText += `페이로드    : ${vuln.payload}\n`;
+                    resultHTML += `<tr><td class="field-label">파라미터</td><td class="field-value">${vuln.parameter}</td></tr>`;
                 }
                 
-                resultText += `════════════════════════════════════════════════════════════════\n\n`;
+                if (vuln.payload) {
+                    resultHTML += `<tr><td class="field-label">페이로드</td><td class="field-value">${escapeHtml(vuln.payload)}</td></tr>`;
+                }
+                resultHTML += `</table>`;
                 
                 if (vuln.extra) {
-                    resultText += `추가 정보:\n${JSON.stringify(vuln.extra, null, 2)}\n`;
+                    resultHTML += `<div class="extra-info">`;
+                    resultHTML += `<h4>추가 정보</h4>`;
+                    resultHTML += `<pre class="json-code">${escapeHtml(JSON.stringify(vuln.extra, null, 2))}</pre>`;
+                    resultHTML += `</div>`;
                 }
+                
+                resultHTML += `</div>`;
             });
             
-            analysisResult.value = resultText;
+            resultHTML += `</div>`;
+            
+            // HTML로 직접 설정
+            analysisResult.innerHTML = resultHTML;
+            
+            // JSON 하이라이팅 적용
+            setTimeout(() => {
+                const jsonElements = analysisResult.querySelectorAll('.json-code');
+                jsonElements.forEach(element => {
+                    if (element.textContent.trim()) {
+                        element.innerHTML = Prism.highlight(element.textContent, Prism.languages.json, 'json');
+                    }
+                });
+            }, 100);
         } else {
-            analysisResult.value = "";
+            analysisResult.innerHTML = "";
         }
     } catch (err) {
         console.error("취약점 분석 결과 조회 오류:", err);
         analysisResult.classList.remove("loading");
-        analysisResult.value = "❌ 분석 결과 조회 중 오류가 발생했습니다.\n\n네트워크 연결을 확인하고 다시 시도해주세요.";
+        analysisResult.innerHTML = "❌ 분석 결과 조회 중 오류가 발생했습니다.\n\n네트워크 연결을 확인하고 다시 시도해주세요.";
         analysisResult.className = '';
     }
     
@@ -861,18 +876,15 @@ function updateEmptyPlaceholder() {
         }
     });
     
-    // textarea 요소 처리
-    const textareaElements = ['analysis-result'];
-    textareaElements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            if (element.value.trim() === '') {
-                element.classList.add('empty-placeholder');
-            } else {
-                element.classList.remove('empty-placeholder');
-            }
+    // div 요소 처리 (analysis-result)
+    const analysisElement = document.getElementById('analysis-result');
+    if (analysisElement) {
+        if (analysisElement.innerHTML.trim() === '') {
+            analysisElement.classList.add('empty-placeholder');
+        } else {
+            analysisElement.classList.remove('empty-placeholder');
         }
-    });
+    }
 }
 
 function toggleFilter() {
@@ -958,7 +970,7 @@ function clearAll() {
     document.getElementById("fuzz-request-list").innerHTML = "";
     document.getElementById("fuzz-body-container").textContent = "";
     document.getElementById("fuzz-response-container").textContent = "";
-    document.getElementById("analysis-result").value = "";
+    document.getElementById("analysis-result").innerHTML = "";
     
     // 전역 변수 초기화
     window.originalRequestText = "";
@@ -1224,6 +1236,106 @@ function updateFuzzDisplay() {
     } else {
         responseContainer.textContent = "📥 퍼징 요청을 선택하면\n응답 전체가 표시됩니다";
     }
+}
+
+// JSON syntax highlighting 관련 함수들
+function isJSONString(str) {
+    if (!str || typeof str !== 'string') {
+        return false;
+    }
+    
+    // 빈 문자열이나 너무 짧은 문자열은 제외
+    if (str.trim().length < 2) {
+        return false;
+    }
+    
+    try {
+        JSON.parse(str);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function extractJSONFromText(text) {
+    // 더 정확한 JSON 감지를 위한 정규식
+    const jsonRegex = /(\{(?:[^{}]|(?:\{[^{}]*\}))*\}|\[(?:[^\[\]]|(?:\[[^\[\]]*\]))*\])/g;
+    const matches = [];
+    let match;
+    
+    while ((match = jsonRegex.exec(text)) !== null) {
+        const jsonText = match[1];
+        if (isJSONString(jsonText)) {
+            matches.push({
+                text: jsonText,
+                start: match.index,
+                end: match.index + jsonText.length,
+                index: matches.length
+            });
+        }
+    }
+    
+    return matches;
+}
+
+function highlightJSONInText(text) {
+    const jsonBlocks = extractJSONFromText(text);
+    
+    if (jsonBlocks.length === 0) {
+        return text;
+    }
+    
+    let result = text;
+    let offset = 0;
+    
+    // JSON 블록들을 역순으로 처리 (인덱스 변경 방지)
+    jsonBlocks.reverse().forEach(block => {
+        const start = block.start + offset;
+        const end = block.end + offset;
+        
+        try {
+            // JSON을 예쁘게 포맷팅
+            const formattedJSON = JSON.stringify(JSON.parse(block.text), null, 2);
+            
+            // Prism.js로 하이라이팅 적용
+            const highlightedJSON = Prism.highlight(formattedJSON, Prism.languages.json, 'json');
+            
+            // JSON 블록으로 교체
+            const jsonBlock = `<div class="analysis-json-block"><pre class="json-highlight"><code class="language-json">${highlightedJSON}</code></pre></div>`;
+            
+            result = result.slice(0, start) + jsonBlock + result.slice(end);
+            offset += jsonBlock.length - (end - start);
+        } catch (e) {
+            console.warn('JSON 하이라이팅 실패:', e);
+        }
+    });
+    
+    return result;
+}
+
+function updateAnalysisResultWithHighlighting(text) {
+    const analysisResult = document.getElementById("analysis-result");
+    
+    if (!text || text.trim() === '') {
+        analysisResult.innerHTML = '';
+        analysisResult.classList.add('empty-placeholder');
+        return;
+    }
+    
+    // JSON 하이라이팅 적용
+    const highlightedText = highlightJSONInText(text);
+    
+    // 하이라이팅된 내용을 div에 설정
+    analysisResult.innerHTML = highlightedText;
+    analysisResult.classList.remove('empty-placeholder');
+    
+    // Prism.js 하이라이팅이 적용된 요소들을 다시 하이라이팅
+    setTimeout(() => {
+        const codeElements = analysisResult.querySelectorAll('code.language-json');
+        codeElements.forEach(code => {
+            Prism.highlightElement(code);
+        });
+    }, 100);
 }
 
 // 스크롤 동기화 관련 변수

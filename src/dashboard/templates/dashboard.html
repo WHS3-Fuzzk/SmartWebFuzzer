@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <title>스마트 웹 퍼저 대시보드</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Prism.js for JSON syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
     <script defer src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
 </head>
 <body>
     <h2>
@@ -64,7 +68,7 @@
         <!-- 오른쪽 : 분석 결과 -->
         <div class="column">
             <div class="section-title">📊 취약점 분석 결과</div>
-            <textarea id="analysis-result" readonly data-placeholder="📊 퍼징 요청을 선택하면&#10;취약점 분석 결과가 표시됩니다"></textarea>
+            <div id="analysis-result" class="analysis-container" data-placeholder="📊 퍼징 요청을 선택하면&#10;취약점 분석 결과가 표시됩니다"></div>
         </div>
     </div>
 </body>
