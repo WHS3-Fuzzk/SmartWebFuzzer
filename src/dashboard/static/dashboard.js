@@ -125,9 +125,10 @@ async function fetchRequests() {
             
             // HTML 안전하게 요소 생성
             const methodSpan = document.createElement("span");
+            methodSpan.className = "bracket-label";
             methodSpan.style.color = methodColor;
-            methodSpan.style.fontWeight = "600";
-            methodSpan.textContent = `[${req.method}]`;
+            methodSpan.style.width = "50px";
+            methodSpan.textContent = req.method;
 
             const urlSpan = document.createElement("span");
             urlSpan.style.marginLeft = "8px";
@@ -580,7 +581,7 @@ async function loadRequestDetail(requestId) {
                 fuzzCountSpan.textContent = `(${data.fuzzing.length}개)`;
             }
             
-            fuzzTitleDiv.textContent = "📨 퍼징 요청 선택 ";
+            fuzzTitleDiv.textContent = "📨 퍼징 요청 목록 ";
             fuzzTitleDiv.appendChild(fuzzCountSpan);
 
             if (filteredData.length === 0) {
@@ -634,9 +635,10 @@ async function loadRequestDetail(requestId) {
 
                 // HTML 안전하게 요소 생성
                 const scannerSpan = document.createElement("span");
+                scannerSpan.className = "bracket-label";
                 scannerSpan.style.color = scannerColor;
-                scannerSpan.style.fontWeight = "600";
-                scannerSpan.textContent = `[${fuzz.scanner}]`;
+                scannerSpan.style.width = "120px";
+                scannerSpan.textContent = fuzz.scanner;
 
                 const payloadSpan = document.createElement("span");
                 payloadSpan.style.marginLeft = "8px";
@@ -656,7 +658,7 @@ async function loadRequestDetail(requestId) {
             // 첫 번째 퍼징 요청 자동 로드
             await updateFuzzDetail(filteredData[0]);
         } else {
-            fuzzTitleDiv.textContent = "📨 퍼징 요청 선택";
+            fuzzTitleDiv.textContent = "📨 퍼징 요청 목록";
             fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징 대상이 아닙니다.</p>";
             document.getElementById("fuzz-body").value = "";
             document.getElementById("fuzz-response").value = "";

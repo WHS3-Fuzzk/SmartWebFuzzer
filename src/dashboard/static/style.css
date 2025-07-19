@@ -233,6 +233,26 @@ textarea:focus {
     transition: opacity 0.3s ease;
 }
 
+.bracket-label {
+    display: inline-block;
+    text-align: center;
+    font-weight: 600;
+    font-family: monospace;
+    position: relative;
+}
+
+.bracket-label::before {
+    content: '[';
+    position: absolute;
+    left: 0;
+}
+
+.bracket-label::after {
+    content: ']';
+    position: absolute;
+    right: 0;
+}
+
 /* 빈 상태 메시지 스타일 */
 .empty-placeholder {
     position: relative;
