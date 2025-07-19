@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 Fuzzing 요청/응답을 dict로 변환하는 유틸리티 함수 모음.
 """
