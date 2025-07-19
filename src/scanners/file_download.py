@@ -16,7 +16,6 @@ import json
 import copy
 import os
 import time
-import traceback
 from typing import Any, Dict, Iterable, List, Optional, cast, Tuple, Set
 
 # 2. 써드파티 라이브러리
@@ -32,11 +31,15 @@ from db_writer import (
     insert_fuzzed_response,
     insert_vulnerability_scan_result,
 )
+from db_reader import DBReader
 from scanners.base import BaseScanner
 from scanners.utils import to_fuzzed_request_dict, to_fuzzed_response_dict
 
 
 def remove_nul(text: Any) -> Any:
+    """
+    문자열 또는 바이트 내에 포함된 널 문자(NUL)를 제거.
+    """
     if isinstance(text, str):
         return text.replace("\x00", "")
     if isinstance(text, bytes):
@@ -44,13 +47,11 @@ def remove_nul(text: Any) -> Any:
     return text
 
 
-def _body_hash(data: Optional[bytes]) -> str:
-    if data is None:
-        return ""
-    return hashlib.md5(data).hexdigest()
-
-
 def get_latest_downloaded_file(download_dir: str) -> Optional[str]:
+    """
+    다운로드 디렉토리에서 가장 마지막에 생성된 파일을 반환.
+    (다운로드 응답 감지 시 비교용)
+    """
     try:
         files = glob.glob(os.path.join(download_dir, "*"))
         files = [f for f in files if os.path.isfile(f)]
@@ -63,48 +64,89 @@ def get_latest_downloaded_file(download_dir: str) -> Optional[str]:
         return None
 
 
-def is_same_file_by_name_and_size(file1: str, file2: str) -> bool:
+def is_same_file_by_hash(file1: str, file2: str) -> bool:
+    """
+    두 파일을 읽어 각각의 해시값을 비교하여 동일 파일 여부를 판단.
+    """
     try:
-        name1 = os.path.basename(file1)
-        name2 = os.path.basename(file2)
 
-        size1 = os.path.getsize(file1)
-        size2 = os.path.getsize(file2)
+        def file_hash(path: str) -> str:
+            with open(path, "rb") as f:
+                return hashlib.md5(f.read()).hexdigest()
 
-        name_contained = name1 in name2 or name2 in name1
-        same_size = size1 == size2
-
-        print(
-            f"파일 이름 비교: '{name1}' in '{name2}' or vice versa → {name_contained}"
-        )
-        print(f"파일 크기 비교: {size1} vs {size2} → {same_size}")
-
-        return name_contained and same_size
+        return file_hash(file1) == file_hash(file2)
     except Exception as e:
-        print(f"[ERROR] 파일 이름/크기 비교 실패: {e}")
+        print(f"[ERROR] 파일 해시 비교 실패: {e}")
         return False
 
 
 class FileDownloadScanner(BaseScanner):
+    """
+    파일 다운로드 취약점을 탐지하기 위한 스캐너 클래스.
+    """
+
     def __init__(self):
         super().__init__()
         self.base_dir = os.path.dirname(__file__)
         self.request_id: int = -1
+        self.body: Optional[bytes] = None
 
     @property
     def vulnerability_name(self) -> str:
+        """
+        취약점 이름 반환 (대시보드 기록용)
+        """
         return "File Download"
 
     def is_target(self, _request_id: int, request: RequestData) -> bool:
+        """
+        요청의 파라미터 중 다운로드 관련 키가 있는지 확인.
+        """
+
+        # 원본 요청에 응답을 request_id로 파싱, 헤더에서 Content-Disposition이 있는 지 확인.
+        db_reader = DBReader()
+        original_response = db_reader.select_filtered_response(_request_id)
+
+        # headers를 딕셔너리로 변환
+        headers_list = original_response.get("headers", []) or []
+        headers = {}
+        for header in headers_list:
+            if isinstance(header, dict) and "key" in header and "value" in header:
+                headers[header["key"]] = header["value"]
+
+        content_disp = headers.get("Content-Disposition", "").lower()
+        if "attachment" not in content_disp:
+            print("[SKIPPED] Content-Disposition 없음 → 퍼징 생략\n")
+            return False
+        print("[OK] Content-Disposition 있음")
+
         query_params = request.get("query_params") or []
         target_keys = {"filename", "file", "filepath", "download", "host"}
-        return any(
+        if not any(
             param.get("key", "").lower() in target_keys for param in query_params
+        ):
+            return False
+
+        # 원본 파일 저장
+        body_data = original_response.get("body", {}) or {}
+        if isinstance(body_data, dict) and "body" in body_data:
+            body_content = body_data["body"]
+        else:
+            body_content = body_data
+
+        self.save_original_file(
+            body_content,
+            headers.get(body_data["content_encoding"], "utf-8"),
         )
+        return True
 
     def generate_fuzzing_requests(
         self, request: RequestData, stage: int
     ) -> Iterable[RequestData]:
+        """
+        단계별 경로 우회 페이로드를 삽입한 변조 요청을 생성.
+        self.current_stage에 따라 payload 선택.
+        """
         query_params = cast(List[QueryParam], request.get("query_params") or [])
         base_path = request.get("path", "").split("?")[0]
         param_key_set = {"filename", "file", "filepath"}
@@ -163,9 +205,32 @@ class FileDownloadScanner(BaseScanner):
             print(f"[GEN] STAGE {stage} → payload: {payload}, path: {new_path}")
             yield mutated
 
+    def save_original_file(self, body: str, content_encoding: str = "utf-8"):
+        """
+        body를 파일로 저장하는 함수.
+        """
+        # body str을 bytes로 변환
+        if isinstance(body, str):
+            body = body.encode(content_encoding, errors="replace")
+            self.body = body
+
+        # ✅ 정상 응답 파일 저장
+        try:
+            download_dir = os.path.expanduser("~/Downloads")
+            os.makedirs(download_dir, exist_ok=True)
+            file_path = os.path.join(download_dir, f"original_{self.request_id}.bin")
+            with open(file_path, "wb") as f:
+                f.write(body)
+            print(f"정상 응답 파일 저장됨 → {file_path}")
+        except Exception as e:
+            print(f"[ERROR] 정상 응답 파일 저장 실패: {e}")
+
     def _build_mutated_params(
         self, query_params: List[QueryParam], target_keys: set[str], payload: str
     ) -> List[QueryParam]:
+        """
+        지정된 키에 대해서만 페이로드를 삽입한 새로운 쿼리 파라미터 리스트를 생성.
+        """
         return [
             {
                 "key": p["key"],
@@ -180,53 +245,22 @@ class FileDownloadScanner(BaseScanner):
         ]
 
     def run(self, request_id: int, request: RequestData) -> List[Dict[str, Any]]:
+        """
+        메인 실행 함수.
+        """
         self.request_id = request_id
         print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}")
-
-        try:
-            normal_response = send_fuzz_request(request)
-
-        except Exception as e:
-            print(f"[ERROR] 정상 요청 실패: {e}")
-            return []
-
-        headers = normal_response.get("headers", {}) or {}
-        content_disp = headers.get("Content-Disposition", "").lower()
-
-        if "attachment" not in content_disp:
-            print("[SKIPPED] Content-Disposition 없음 → 퍼징 생략\n")
-            return []
 
         if not self.is_target(request_id, request):
             print("[SKIPPED] is_target 조건 불충족")
             return []
 
-        print("[OK] Content-Disposition 있음 → 퍼징 진행")
-
-        # ✅ 정상 응답 바디 추출
-        normal_body = normal_response.get("body", b"")
-        if isinstance(normal_body, str):
-            normal_body = normal_body.encode("utf-8", errors="replace")
-
-        # ✅ 정상 응답 파일 저장
-        try:
-            download_dir = os.path.expanduser("~/Downloads")
-            os.makedirs(download_dir, exist_ok=True)
-            file_path = os.path.join(download_dir, f"original_{self.request_id}.bin")
-            with open(file_path, "wb") as f:
-                f.write(normal_body)
-            print(f"정상 응답 파일 저장됨 → {file_path}")
-        except Exception as e:
-            print(f"[ERROR] 정상 응답 파일 저장 실패: {e}")
-            return []
-
         results = []
-        seen = set()
 
         for stage in [1, 2, 3]:
             print(f"\n=== [STAGE {stage}] 퍼징 시작 ===")
             stage_success, stage_results, seen_pairs = self._run_stage_fuzzing(
-                request, stage, normal_body
+                request, stage, self.body
             )
             results.extend(stage_results)
 
@@ -243,6 +277,9 @@ class FileDownloadScanner(BaseScanner):
     def _run_stage_fuzzing(
         self, request: RequestData, stage: int, normal_body: Optional[bytes] = None
     ) -> Tuple[bool, List[Dict[str, Any]], Set[Tuple[str, str]]]:
+        """
+        퍼징 실행 함수
+        """
         results: List[Dict[str, Any]] = []
         seen_pairs: Set[Tuple[str, str]] = set()
         success = False
@@ -289,7 +326,7 @@ class FileDownloadScanner(BaseScanner):
                     print(f"[WARN] 다운로드된 파일을 찾을 수 없음")
                     continue
 
-                is_same = is_same_file_by_name_and_size(original_file_path, latest_file)
+                is_same = is_same_file_by_hash(original_file_path, latest_file)
                 if is_same:
                     print(f"[MATCH] 동일 파일 다운로드됨 → payload: {payload}")
                     success = True
@@ -316,7 +353,6 @@ class FileDownloadScanner(BaseScanner):
                     args=[{**fuzz_response, "extra": extra}]
                 )
                 result = async_result.get()
-                print(f"Celery 분석 결과 수신 완료 → {result}")
             except (CeleryTimeoutError, TaskRevokedError) as e:
                 print(f"[!] 분석 태스크 시간 초과 또는 취소됨 → payload: {payload}")
                 result = {}
@@ -340,16 +376,16 @@ class FileDownloadScanner(BaseScanner):
         result: Dict[str, Any],
         seen_pairs: Set[Tuple[str, str]],
     ) -> bool:
+        """
+        Celery 분석 결과를 처리하여 중복 여부를 확인하고,
+        DB에 요청/응답/취약점 결과를 저장한 뒤 성공 여부를 반환한다.
+        """
         scan_url = str(result.get("scan_url") or "unknown")
         result_payload = str(result.get("payload") or "")
         if (scan_url, result_payload) in seen_pairs:
             print(f"[DUPLICATE] → {scan_url} / {result_payload}")
             return False
         seen_pairs.add((scan_url, result_payload))
-
-        print(
-            f"[RESULT] 분석 결과:\n{json.dumps(result, indent=2, ensure_ascii=False)}"
-        )
 
         req_dict = to_fuzzed_request_dict(
             fuzz_request,
@@ -388,6 +424,12 @@ class FileDownloadScanner(BaseScanner):
 
 @celery_app.task(name="tasks.analyze_file_download_response", queue="analyze_response")
 def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    퍼징 응답을 분석하는 Celery 태스크 함수.
+    - STAGE 1: 동일 파일 여부 기반 판단
+    - STAGE 2: 상위 경로 접근으로 다른 파일 응답 여부 확인
+    - STAGE 3: Content-Disposition 없이도 파일이 응답되는지 확인
+    """
     headers = response.get("headers", {}) or {}
     extra = response.get("extra", {}) or {}
 
