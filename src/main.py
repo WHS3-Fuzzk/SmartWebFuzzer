@@ -21,7 +21,7 @@ from InquirerPy import inquirer
 from db_init import initialize_databases
 import proxy
 from scanner_trigger import ScannerTrigger
-from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
+from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers, set_rps
 from dashboard.app import app, close_connection_pool
 from scanners import _REGISTRY
 
@@ -61,6 +61,14 @@ def parse_arguments():
     )
 
     parser.add_argument("-v", "--verbose", action="store_true", help="상세한 로그 출력")
+    parser.add_argument(
+        "-rps",
+        "--rate-limit",
+        type=float,
+        default=None,
+        help="초당 요청 수 제한 (RPS, 기본값: 제한 없음)",
+        metavar="NUM",
+    )
 
     parser.add_argument("-h", "--help", action="store_true", help="이 도움말 표시")
 
@@ -136,6 +144,11 @@ def main():
 
     # Celery 워커 시작
     celery_workers = start_celery_workers(workers=args.workers)
+    # 워커 시작 확인
+    while True:
+        if all(worker.poll() is None for worker in celery_workers):
+            break
+        print("[INFO] Celery 워커 시작 중...")
 
     print("[INFO] 스캐너 트리거 시작 중...")
     threading.Thread(
@@ -145,6 +158,9 @@ def main():
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
+    # rps 설정
+    if args.rate_limit is not None:
+        set_rps(args.rate_limit)
 
     driver = None
     try:
@@ -263,6 +279,7 @@ def ascii_art(show_manual=False):
         "성능 옵션:",
         "  -w, --workers NUM 퍼징 요청 워커 수 (기본값: 4)",
         "  -t, --threads NUM 스레드 수 (기본값: 8)",
+        "  -rps, --rate-limit NUM 초당 요청 수 제한 (RPS, 기본값: 제한 없음)",
         "",
         "기타 옵션:",
         "  -v, --verbose     상세한 로그 출력",
@@ -279,10 +296,7 @@ def ascii_art(show_manual=False):
             "사용 예시:",
             "  python main.py -url https://example.com",
             "  python main.py --workers 6 --threads 12",
-            "",
-            "",
-            "",
-            "",
+            "  python main.py --rate-limit 10",
         ]
     )
 

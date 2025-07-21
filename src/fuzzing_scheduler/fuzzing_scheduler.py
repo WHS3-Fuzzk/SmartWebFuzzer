@@ -20,7 +20,6 @@ fuzzing_scheduler는 퍼징 요청의 분산/스케줄링과 워커 관리를 �
 
 import os
 from pathlib import Path
-import time
 import subprocess
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -124,7 +123,7 @@ def start_celery_workers(workers: int = 4) -> List[subprocess.Popen]:
     # 퍼징 요청 워커 설정
 
     worker_configs = [
-        ("fuzz_request", workers),  # 퍼징 요청을 처리하는 워커
+        ("fuzz_request", workers),
         ("analyze_response", 2),
     ]
 
@@ -132,14 +131,6 @@ def start_celery_workers(workers: int = 4) -> List[subprocess.Popen]:
         worker = start_celery_worker(queue_name, concurrency)
         if worker:
             workers_list.append(worker)
-
-    # 워커들이 제대로 시작될 때까지 잠시 대기
-    time.sleep(3)
-
-    # 워커 상태 확인
-    for worker in workers_list:
-        if worker.poll() is not None:
-            print("[ERROR] celery 워커가 실행 실패")
 
     return workers_list
 
@@ -261,3 +252,26 @@ def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
         "params": params,
         "data": data,
     }
+
+
+def set_rps(rps: float) -> None:
+    """
+    초당 요청 수(RPS)를 설정합니다.
+    """
+
+    subprocess.run(
+        [
+            "celery",
+            "-A",
+            "fuzzing_scheduler.fuzzing_scheduler",
+            "control",
+            "rate_limit",
+            "tasks.send_fuzz_request",
+            f"{rps}/s",
+        ],
+        cwd=os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
+        ),  # src/ 디렉토리
+        check=True,
+        env=os.environ.copy(),
+    )
