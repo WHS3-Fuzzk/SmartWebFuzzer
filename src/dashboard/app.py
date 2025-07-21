@@ -507,7 +507,8 @@ def get_fuzz_request_headers(fuzz_request_id):
 
 if __name__ == "__main__":
     try:
-        app.run(debug=True)
+        # Docker 환경에서는 모든 인터페이스에서 접근 가능하도록 설정
+        app.run(host="0.0.0.0", port=5000, debug=False)
     except KeyboardInterrupt:
         print("\n🛑 서버 종료 중...")
         close_connection_pool()

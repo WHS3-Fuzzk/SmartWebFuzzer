@@ -8,7 +8,6 @@
 4. Celery 워커 실행
 5. 프록시 서버 실행 (mitmproxy)
 6. 셀레니움 브라우저 실행
-7. 대시보드 모듈 실행
 """
 
 import os
@@ -137,16 +136,6 @@ def main():
 
     # Celery 워커 시작
     celery_workers = start_celery_workers(workers=args.workers)
-
-    # 대시보드 모듈 실행 (별도 스레드)
-    print("[INFO] 대시보드 서버 시작 중... (http://localhost:5000)")
-    dashboard_thread = threading.Thread(
-        target=lambda: app.run(
-            host="0.0.0.0", port=5000, debug=False, use_reloader=False
-        ),
-        daemon=True,
-    )
-    dashboard_thread.start()
 
     print("[INFO] 스캐너 트리거 시작 중...")
     threading.Thread(
