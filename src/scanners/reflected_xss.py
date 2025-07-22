@@ -252,7 +252,7 @@ class ReflectedXss(BaseScanner):
                         #     f"응답: {res.parent.get()}\n"
                         #     f"분석 결과: {result}\n"
                         # )
-                        # TODO: 퍼징 요청과 응답, 분석 결과를 DB에 저장하는 로직 추가
+
                         fuzzed_request: RequestData = res.parent.get().get(
                             "request_data"
                         )  # 퍼징 요청
