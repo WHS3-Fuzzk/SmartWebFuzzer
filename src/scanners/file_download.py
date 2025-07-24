@@ -280,17 +280,13 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
                 f"1단계: 경로 조작 '{payload}' 사용 시 다른 응답 반환됨 (파일 다름)"
             )
 
-    elif stage == 2:
-        if is_same_file:
-
-            evidence = f"2단계: 상위 경로 우회('{payload}') 시 동일 파일 다운로드됨 → 취약점 가능성 ⬆️"
-        elif body and len(body) > 0:
-
+    if stage == 2:
+        if body and len(body) > 0:
             evidence = (
-                "2단계: 상위 디렉터리로 접근하여 다른 파일 다운로드됨 → 취약점 가능성 ⬆️"
+                f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약점 가능성 ⬆️"
             )
         else:
-            evidence = "2단계: 다운로드 실패 또는 응답 없음 → 취약 가능성 ⬇️"
+            evidence = "2단계: 우회 실패 또는 응답 없음 → 취약 가능성 낮음"
 
     return {
         "evidence": evidence,
