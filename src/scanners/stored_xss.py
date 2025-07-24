@@ -6,7 +6,9 @@ Stored XSS 취약점 스캐너 모듈입니다.
 """
 
 import urllib.parse
-
+from email.message import EmailMessage
+from email.parser import BytesParser
+from email.policy import default
 import json
 import copy
 from typing import Any, Dict, Iterable, List
@@ -16,6 +18,7 @@ from db_writer import insert_fuzzed_request, insert_fuzzed_response
 from scanners.base import BaseScanner
 from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 from typedefs import RequestData
+from scanners.utils import to_fuzzed_request_dict, to_fuzzed_response_dict
 
 # from fuzzing_scheduler.fuzzing_scheduler import requestdata_to_requests_kwargs
 # import requests
@@ -146,7 +149,97 @@ class StoredXSS(BaseScanner):
                     print(f"{new_request}")
                     print("------------------------")
                     yield new_request
-        # TODO: json, multipart/form-data 등은 추후 구현 필요
+        elif "multipart/form-data" in content_type:
+            # boundary 추출
+            boundary = ""
+            for h in headers:
+                if h.get("key", "").lower() == "content-type":
+                    ct = h.get("value", "")
+                    if "boundary=" in ct:
+                        boundary = ct.split("boundary=")[-1]
+                        break
+            if not boundary:
+                print("boundary 정보 없음")
+                return
+
+            # multipart 파싱
+            msg = BytesParser(policy=default).parsebytes(
+                b"Content-Type: multipart/form-data; boundary=%b\r\n\r\n%b"
+                % (boundary.encode(), raw_body.encode("utf-8"))
+            )
+
+            parts = []
+            # 파트별로 하나씩 페이로드 삽입된 요청 생성
+            for i, part in enumerate(msg.iter_parts()):
+                # 파일 파트는 건너뜀
+                if (
+                    part.get_content_disposition() == "form-data"
+                    and not part.get_filename()
+                ):
+                    # 기존 name 추출
+                    cd = part.get("Content-Disposition", "")
+                    name = ""
+                    for piece in cd.split(";"):
+                        piece = piece.strip()
+                        if piece.startswith("name="):
+                            name = piece.split("=")[-1].strip('"')
+                            break
+                    if not name:
+                        print(f"form-data 파트에 name 없음: {cd}")
+                        continue
+
+                    # 모든 파트 복사
+                    new_parts = []
+                    for j, orig_part in enumerate(msg.iter_parts()):
+                        if i == j:
+                            # 페이로드 삽입 파트
+                            new_part = EmailMessage()
+                            new_part.add_header(
+                                "Content-Disposition", f'form-data; name="{name}"'
+                            )
+                            # 원본 Content-Type 복사 (없으면 생략)
+                            orig_ct = orig_part.get("Content-Type")
+                            if orig_ct:
+                                new_part.add_header("Content-Type", orig_ct)
+                            # 페이로드 삽입
+                            payload = self.get_payload(request_id, i)
+                            new_part.set_payload(payload)
+                            new_parts.append(new_part)
+                        else:
+                            # 원본 파트 그대로 복사
+                            new_parts.append(orig_part)
+
+                    # 새 multipart 메시지 생성
+                    new_msg = EmailMessage()
+                    new_msg.set_type("multipart/form-data")
+                    new_msg.set_boundary(boundary)
+                    for p in new_parts:
+                        new_msg.attach(p)
+
+                    new_body_str = (
+                        new_msg.as_bytes()
+                        .split(b"\r\n\r\n", 1)[-1]
+                        .decode("utf-8", errors="replace")
+                    )
+                    new_content_length = str(len(new_body_str.encode("utf-8")))
+
+                    new_request = copy.deepcopy(request)
+                    new_request["headers"] = [h.copy() for h in headers]
+                    for h in new_request["headers"]:
+                        if h["key"].lower() == "content-length":
+                            h["value"] = new_content_length
+                    new_request["body"] = body.copy()
+                    new_request["body"]["body"] = new_body_str
+                    new_request["body"]["content_length"] = int(new_content_length)
+                    new_request["extra"] = {
+                        "fuzzed_param": name,
+                        "payload": payload,
+                        "param_id": i,
+                        "type": "stored_xss",
+                    }
+                    print(f"{new_request}")
+                    print("------------------------")
+                    yield new_request
 
     def run(
         self,
@@ -190,80 +283,3 @@ class StoredXSS(BaseScanner):
                 print(f"DB 저장 중 오류 발생: {e}")
 
         return []
-
-
-def to_fuzzed_request_dict(
-    fuzzing_request: RequestData,
-    original_request_id: int,
-    scanner: str,
-    payload: str,
-) -> dict:
-    """traffic_filter.py의 flow_to_request_dict 구조에 맞게 변환"""
-    meta = fuzzing_request["meta"]
-    headers = fuzzing_request.get("headers")
-
-    # headers를 딕셔너리로 변환
-    headers_dict = {}
-    if headers:
-        for h in headers:
-            headers_dict[h["key"]] = h["value"]
-
-    return {
-        "original_request_id": original_request_id,
-        "scanner": scanner,
-        "payload": payload,
-        "is_http": meta.get("is_http"),
-        "http_version": meta.get("http_version"),
-        "domain": meta.get("domain"),
-        "path": meta.get("path"),
-        "method": meta.get("method"),
-        "timestamp": meta.get("timestamp"),
-        "headers": headers_dict,
-        "query": fuzzing_request.get("query_params", []),
-        "body": fuzzing_request.get("body"),
-    }
-
-
-def to_fuzzed_response_dict(fuzzed_response: dict) -> dict:
-    """traffic_filter.py의 flow_to_response_dict 구조에 맞게 변환"""
-
-    headers = fuzzed_response.get("headers", {})
-    content_type = headers.get("Content-Type", "")
-
-    # Content-Type에서 charset 추출
-    charset = None
-    if "charset=" in content_type.lower():
-        charset = content_type.split("charset=")[-1].strip()
-
-    body_dict = {
-        "content_type": content_type,
-        "charset": charset,
-        "content_length": headers.get("Content-Length"),
-        "content_encoding": headers.get("Content-Encoding"),
-        "body": fuzzed_response.get("body"),  # 원본 바이트 데이터
-    }
-    return {
-        "http_version": fuzzed_response.get("http_version"),
-        "status_code": fuzzed_response.get("status_code"),
-        "timestamp": fuzzed_response.get("timestamp"),
-        "headers": headers,
-        "body": body_dict,
-    }
-
-
-# @celery_app.task(name="tasks.record_stored_payload", queue="analyze_response")
-# def record_stored_payload(response: Dict[str, Any]) -> None:
-#     """
-#     Stored XSS 탐지의 첫 단계인 삽입 요청을 저장하는 역할
-#     - 실제 검출(트리거)은 나중에 별도 분석기로 진행
-#     """
-#     # 삽입 요청의 정보만 기록 (분석은 생략)
-#     request_data = response.get("request_data", {})
-#     extra = request_data.get("extra", {})
-#     payload = extra.get("payload", "")
-#     target_param = extra.get("fuzzed_param", "")
-#     url = request_data.get("meta", {}).get("path", "")
-
-#     print(
-#         f"[+] Stored XSS 삽입 요청 기록: URL={url}, Param={target_param}, Payload={payload}"
-#     )

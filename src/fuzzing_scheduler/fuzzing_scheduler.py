@@ -20,7 +20,6 @@ fuzzing_scheduler는 퍼징 요청의 분산/스케줄링과 워커 관리를 �
 
 import os
 from pathlib import Path
-import time
 import subprocess
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -42,14 +41,13 @@ celery_app = Celery(
     # TODO: imports에 스캐너 모듈을 추가하여 자동으로 로드되도록 설정 필요
     imports=[
         "fuzzing_scheduler.fuzzing_scheduler",
-        "scanners.reflected_xss",  # 예시 스캐너 모듈
-        "scanners.example",  # 예시 스캐너 모듈
-        "scanners.ssrf",  # SQL Injection 스캐너 모듈
-        "scanners.stored_xss",  # Stored XSS 스캐너 모듈
-        "scanners.dom_xss",  # Dom XSS 스캐너 모듈
+        "scanners.reflected_xss",  # Reflected XSS 스캐너
+        "scanners.ssrf",  # SQL Injection 스캐너
+        "scanners.stored_xss",  # Stored XSS 스캐너
+        "scanners.dom_xss",  # Dom XSS 스캐너
         "scanners.file_download",  # File Download 스캐너
         "scanners.command_injection",  # Command Injection 스캐너
-        "scanners.sqli",  # Sqli 스캐너 모듈
+        "scanners.sqli",  # Sql Injection 스캐너
     ],
 )
 # celery_app.autodiscover_tasks(["scanners"])
@@ -112,27 +110,29 @@ def start_celery_worker(
         return None
 
 
-def start_celery_workers() -> List[subprocess.Popen]:
-    """Celery 워커들을 백그라운드에서 시작"""
-    print("[INFO] Celery 워커 시작 중...")
+def start_celery_workers(workers: int = 4) -> List[subprocess.Popen]:
+    """Celery 워커들을 백그라운드에서 시작
 
-    workers = []
-    worker_configs = [("fuzz_request", 6), ("analyze_response", 4)]
+    Args:
+        workers: 퍼징 요청을 보내는 워커 수 (기본값: 4)
+    """
+    print(f"[INFO] Celery 워커 시작 중... (워커 수: {workers})")
+
+    workers_list = []
+
+    # 퍼징 요청 워커 설정
+
+    worker_configs = [
+        ("fuzz_request", workers),
+        ("analyze_response", 2),
+    ]
 
     for queue_name, concurrency in worker_configs:
         worker = start_celery_worker(queue_name, concurrency)
         if worker:
-            workers.append(worker)
+            workers_list.append(worker)
 
-    # 워커들이 제대로 시작될 때까지 잠시 대기
-    time.sleep(3)
-
-    # 워커 상태 확인
-    for worker in workers:
-        if worker.poll() is not None:
-            print("[ERROR] celery 워커가 실행 실패")
-
-    return workers
+    return workers_list
 
 
 @celery_app.task(name="tasks.send_fuzz_request", queue="fuzz_request")
@@ -150,12 +150,16 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
         detected_encoding = chardet.detect(response.content)["encoding"]
         body = response.content.decode(detected_encoding or "utf-8", errors="replace")
 
+        # HTTP 버전 매핑
+        http_version_map = {10: "1.0", 11: "1.1", 20: "2.0"}
+        http_version = "HTTP/" + http_version_map.get(response.raw.version, "unknown")
+
         return {
             "status_code": response.status_code,
             "headers": dict(response.headers),
             "text": response.text,
             "elapsed_time": response.elapsed.total_seconds(),
-            "http_version": response.raw.version,
+            "http_version": http_version,
             "url": response.url,
             "body": body,
             "timestamp": datetime.now(),
@@ -232,9 +236,8 @@ def send_fuzz_request(request_data: RequestData, *args, **kwargs) -> Dict[str, A
 def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
     """RequestData 객체를 requests.request에 필요한 인자 형태로 변환"""
     is_http = request_data["meta"]["is_http"]
-    scheme = "http://"
-    if is_http:
-        scheme = "http://" if is_http == 1 else "https://"
+    scheme = "http://" if is_http == 1 else "https://"
+
     method = request_data["meta"]["method"]
     url = f"{scheme}{request_data['meta']['domain']}{request_data['meta']['path']}"
     headers = {h["key"]: h["value"] for h in (request_data.get("headers") or [])}
@@ -249,3 +252,26 @@ def requestdata_to_requests_kwargs(request_data: RequestData) -> dict:
         "params": params,
         "data": data,
     }
+
+
+def set_rps(rps: float) -> None:
+    """
+    초당 요청 수(RPS)를 설정합니다.
+    """
+
+    subprocess.run(
+        [
+            "celery",
+            "-A",
+            "fuzzing_scheduler.fuzzing_scheduler",
+            "control",
+            "rate_limit",
+            "tasks.send_fuzz_request",
+            f"{rps}/s",
+        ],
+        cwd=os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
+        ),  # src/ 디렉토리
+        check=True,
+        env=os.environ.copy(),
+    )

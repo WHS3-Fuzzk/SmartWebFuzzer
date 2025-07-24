@@ -1,3 +1,4 @@
+# pylint: skip-file
 """스마트 웹 퍼저의 시작점 모듈
 
 동작 순서:
@@ -7,7 +8,6 @@
 4. Celery 워커 실행
 5. 프록시 서버 실행 (mitmproxy)
 6. 셀레니움 브라우저 실행
-7. 대시보드 모듈 실행
 """
 
 import os
@@ -15,51 +15,151 @@ import time
 import urllib.parse
 import threading
 import subprocess
+import argparse
 from selenium.common.exceptions import WebDriverException
+from InquirerPy import inquirer
 from db_init import initialize_databases
 import proxy
 from scanner_trigger import ScannerTrigger
-from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers
-from dashboard.app import app, close_connection_pool
+from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers, set_rps
+from scanners import _REGISTRY
+
+
+def parse_arguments():
+    """명령줄 인자를 파싱합니다."""
+    parser = argparse.ArgumentParser(
+        description="Fuzzk SmartWebFuzzer - 웹 취약점 스캐너",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,  # 기본 help를 비활성화
+    )
+
+    parser.add_argument(
+        "-url",
+        "--url",
+        type=str,
+        help="타겟 URL (쉼표로 구분하여 여러 개 지정 가능)",
+        metavar="URL",
+    )
+
+    parser.add_argument(
+        "-w",
+        "--workers",
+        type=int,
+        default=4,
+        help="퍼징 요청을 보내는 워커 수 (기본값: 4)",
+        metavar="NUM",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        default=8,
+        help="스레드 수 (기본값: 8)",
+        metavar="NUM",
+    )
+
+    parser.add_argument("-v", "--verbose", action="store_true", help="상세한 로그 출력")
+    parser.add_argument(
+        "-rps",
+        "--rate-limit",
+        type=float,
+        default=None,
+        help="초당 요청 수 제한 (RPS, 기본값: 제한 없음)",
+        metavar="NUM",
+    )
+
+    parser.add_argument("-h", "--help", action="store_true", help="이 도움말 표시")
+
+    return parser.parse_args()
 
 
 def main():
     """스마트 웹 퍼저 메인 함수"""
-    input_urls = input(
-        "타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):\n> "
-    )
-    urls = [u.strip() for u in input_urls.split(",") if u.strip()]
+    args = parse_arguments()
+
+    # help 옵션 처리
+    if args.help:
+        ascii_art(show_manual=True)
+        return
+
+    ascii_art()  # 일반 실행 시 ASCII 아트만 표시
+
+    # URL 처리
+    if args.url:
+        urls = [u.strip() for u in args.url.split(",") if u.strip()]
+    else:
+        input_urls = inquirer.text(
+            message="타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):",
+            validate=lambda text: bool(text.strip())
+            or "URL을 1개 이상 입력해야 합니다.",
+            qmark="▶",
+        ).execute()
+        urls = [u.strip() for u in input_urls.split(",") if u.strip()]
+
     if not urls:
         print("URL이 입력되지 않았습니다. 종료합니다.")
         return
 
+    # --- 스캐너 선택 UI (InquirerPy) ---
+    scanner_names = list(_REGISTRY.keys())
+    choices = [{"name": name, "value": name, "enabled": True} for name in scanner_names]
+    print(
+        "\n활성화할 스캐너를 선택하세요 (스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료)\n"
+    )
+    selected = inquirer.checkbox(
+        message="스캐너 목록:",
+        choices=choices,
+        instruction="스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료",
+        cycle=True,
+        pointer="→",
+        qmark="▶",
+    ).execute()
+    if not selected:
+        print("[ERROR] 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
+        return
+
+    # 선택된 스캐너만 _REGISTRY에 남기고 나머지는 삭제
+    for name in list(_REGISTRY.keys()):
+        if name not in selected:
+            del _REGISTRY[name]
+    print(f"[INFO] 활성화된 스캐너: {', '.join(selected)}")
+    print(
+        f"[INFO] 비활성화된 스캐너: {', '.join([s for s in scanner_names if s not in selected])}"
+    )
+
+    # 워커 및 성능 설정
+    print(f"[INFO] 퍼징 요청 워커 수: {args.workers}")
+    print(f"[INFO] 스레드 수: {args.threads}")
+
+    if args.verbose:
+        print("[INFO] 상세 로그 모드 활성화")
+
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
     os.environ["TARGET_DOMAINS"] = ",".join(domains)
-
-    # TODO: 인프라 docker-compose 실행
 
     # 데이터베이스 초기화
     db = initialize_databases()
 
     # Celery 워커 시작
-    celery_workers = start_celery_workers()
-
-    # 대시보드 모듈 실행 (별도 스레드)
-    print("[INFO] 대시보드 서버 시작 중... (http://localhost:5000)")
-    dashboard_thread = threading.Thread(
-        target=lambda: app.run(
-            host="0.0.0.0", port=5000, debug=False, use_reloader=False
-        ),
-        daemon=True,
-    )
-    dashboard_thread.start()
+    celery_workers = start_celery_workers(workers=args.workers)
+    # 워커 시작 확인
+    while True:
+        if all(worker.poll() is None for worker in celery_workers):
+            break
+        print("[INFO] Celery 워커 시작 중...")
 
     print("[INFO] 스캐너 트리거 시작 중...")
-    threading.Thread(target=ScannerTrigger().run, daemon=True).start()
+    threading.Thread(
+        target=ScannerTrigger(max_workers=args.threads).run, daemon=True
+    ).start()
 
     print("[INFO] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
+    # rps 설정
+    if args.rate_limit is not None:
+        set_rps(args.rate_limit)
 
     driver = None
     try:
@@ -85,11 +185,6 @@ def main():
         print("[INFO] DB 백업 시작...")
         db.backup_database()
 
-        # 대시보드 DB cleanup
-        print("[INFO] 대시보드 DB 연결 풀 종료 중...")
-
-        close_connection_pool()
-
         print("[INFO] 종료 중...")
 
         # Celery 워커들 종료
@@ -110,6 +205,109 @@ def main():
             print(f"[WARN] mitmproxy 종료 중 오류: {exc}")
 
         print("[INFO] 종료 완료")
+
+
+def ascii_art(show_manual=False):
+    # pylint: disable=line-too-long
+    """아스키 아트 출력 (선택적으로 매뉴얼 포함)"""
+    art_lines = [
+        "                                                 ▓▓█▓                                                ",
+        "                                               ▓▓████▓█                                              ",
+        "                                             ▓███▒▒▒▒███▓                                            ",
+        "                                        █▓▓███▓▒▓▓▓▓▓▓▒▓███▓▓█                                       ",
+        "                          ▓███▓▓▓▓▓▓██████▓▒▒▓█▓▓████▓▓█▓▒▒▓██████▓▓▓▓▓▓████                         ",
+        "                          ██▒░░░░░░░░░░▒▓███▓▓████▓▓████▓▓███▓▒░░░░░░░░░░▒█▓                         ",
+        "                          ██▒▓▓▓▓▓▓▓▓▓▓▓▓█████▓▓▓▒▒▒▒▒▓▓█████▓▓▓▓▓▓▓▓▓▓▓█▒█▓                         ",
+        "                          ██▒▓▓███████████▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓██████████▓█▒█▓                         ",
+        "                          ██▒▓▓██▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓██▓█▒█▓                         ",
+        "                          ██▒▓▓██▓▒▒░░░░░░▒▒░▒▒▓ ▓██▓░▓▒▒▒▒▒░░░░░▒▒▒▓██▓█▒█▓                         ",
+        "                          ██▒▓▓██▓▒▒░▒▒▒▒▒▒▒▒▓█        █▒▒░░░░▒░▒░░▒▓██▓█▒█▓                         ",
+        "                          ▓█▒▓▓██▓▒▒▒░░▒▒▒▒▒▓▓█  ░██░  █▒▒▒▒▒▒░░░▒▒▒▓██▓█▒█▓                         ",
+        "             ███████████████▒▓▓██▓▓▒▒▒▓▒▒▒░▒▓▓█   ▒▓   █▒▒▒▒▒▒▒▒▒▒░▒▓██▓█▒███▓                       ",
+        "             ██▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▒▒▒▒▒▒▒▒▒▓▓█   ▒▒   █▓▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓█▓                       ",
+        "             ██▓▓█▒          ░█▓█▓▓▓▒▒▒▒▒▒▒▒▓▓██████████▓▒▒▓▒▒▒▒▒▒▓▓█▓   ▓▓██████████████            ",
+        "             ██▓▓█▒          ░█▓█▓▓▓▓▓▓▓▓▒▓▓▓▓█████████▓▓▓▓▓▓▓▓▓▓▓▓▓█▒   ▓▓▓▓▓▓▓▓▓▓▓████             ",
+        "             ██▓▓█▒   ▓█████████████▓▓████████▓▓▓▓▓▓▓▓▓███▓▓▓▓▓▓▓▓▓██▒   ▓█████▓███▓███              ",
+        "             ██▓▓█▒   ▓████████▓   ████▒   ██▓         ▓█▓         ▒█▓   ▓██   ▒██▓███               ",
+        "             ██▓▓█▒   ▓▓▓▓▓▓███▓   ████▒   ███████▓   ▓███████▓   ▒██▓   ▓▒   ▒█▓▓███                ",
+        "             ██▓▓█▒         ▒██▓   ████▒   ███▓██▒   ▓█▓▓▓▓██▓   ▓███▓       ▓█▓████                 ",
+        "             ██▓▓█▒   ▒▓▓▓▓▓███▓   ████▒   █▓▓██░   ██▓███▓█▒   ▓█▓▓█▒       ██▓███                  ",
+        "             ██▓▓█▒   ▓████████▓   ████▒   ████░  ░██▓▓█▓██░   ██▓▓▓█▒   ░░   ▓█▓███                 ",
+        "             ▓█▓▓█▒   ▓████████▓   ▓███    ███   ▒████████   ░███████▒   ▓█▒   ▓█▓███                ",
+        "             ██▓▓█▒   ▓███▓█▓▓██▒          ██           █░          █▒   ▓██▓   ▓█▓███               ",
+        "             ██▓▓█████████▓█▓▓▓███▓▓▒▓███▓████▓▓▓▓▓▓▓▓▓███▓▓▓▓▓▓▓▓▓████████████████▓███              ",
+        "            █▓█▓▓█████▓▓██▓█▓█████████████████████████████████████████████▓▓██████▓▓▓███             ",
+        "            ██████████████▒█▓█▓██████▓▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▓▓█▓▓█▓▓▓█▓▓██████▓█▓███████████████            ",
+        "                          ▓█▓▒█▓████▓▓▓▒▒▒▓▓▒▓▒▒▓▒▓▒▒▒▒▓▓▓▒▒▒▓▓▒▓▓████▓█▒▓█▓                         ",
+        "                           ▓██▒▒█▓████▓▓▒▒▒▓▒▒▒▒▒▒▓▒▒▒▒▓▒▓▒▒▒▓▒▓▓███▓█▓▒██▓                          ",
+        "                            ▓▓██▒▓█▓████▓▓▒▓▒▒▒▒▒▓▓▒▒▒▒▓▒▓▓▓▓▓████▓█▓▒██▓▒                           ",
+        "                              ▓███▒▓█▓████▓▓▓▓▓▓▓▒▓▒▒▓▒▓▓▓▓▓████▓█▓▒██▓▓                             ",
+        "                                ████▒▓█▓████▓▓▓▒▒▒▓▓▒▓▒▒▓▓████▓█▓▒███▓                               ",
+        "                                  ▓███▓▒██▓████▓▓▒▓▓▓▓▓████▓██▒▓████                                 ",
+        "                                     ███▓░▓█▓█████▓▓█████▓█▓░▓██▓                                    ",
+        "                                       ▓███▒▒██▓██████▓██▒▒███▓                                      ",
+        "                                          ████▒▓██████▓▒█████                                        ",
+        "                                            ▓███▓▒▓▓▒▓███▓                                           ",
+        "                                              ████████                                              ",
+        "                                                 ██                                                 ",
+    ]
+
+    if not show_manual:
+        # ASCII 아트만 출력
+        for art_line in art_lines:
+            print(art_line)
+        print()  # 마지막에 빈 줄 추가
+        return
+
+    # ASCII 아트와 매뉴얼을 함께 출력
+    manual_lines = [
+        "",
+        "Fuzzk SmartWebFuzzer - 웹 취약점 스캐너",
+        "",
+        "사용법:",
+        "  python main.py [옵션]",
+        "",
+        "타겟 설정:",
+        "  -url URL          타겟 URL (쉼표로 구분하여 여러 개 지정)",
+        "",
+        "성능 옵션:",
+        "  -w, --workers NUM 퍼징 요청 워커 수 (기본값: 4)",
+        "  -t, --threads NUM 스레드 수 (기본값: 8)",
+        "  -rps, --rate-limit NUM 초당 요청 수 제한 (RPS, 기본값: 제한 없음)",
+        "",
+        "기타 옵션:",
+        "  -v, --verbose     상세한 로그 출력",
+        "  -h, --help        이 도움말 표시",
+        "",
+        "취약점 스캔 모듈:",
+    ]
+    # 동적으로 스캐너 이름 추가
+    for name in _REGISTRY:
+        manual_lines.append(f"  - {name}")
+    manual_lines.extend(
+        [
+            "",
+            "사용 예시:",
+            "  python main.py -url https://example.com",
+            "  python main.py --workers 6 --threads 12",
+            "  python main.py --rate-limit 10",
+        ]
+    )
+
+    # 두 리스트의 최대 길이 계산
+    max_lines = max(len(art_lines), len(manual_lines))
+
+    # 빈 라인으로 패딩
+    while len(art_lines) < max_lines:
+        art_lines.append(" " * 100)  # ASCII 아트 너비만큼 공백
+    while len(manual_lines) < max_lines:
+        manual_lines.append("")
+
+    # 나란히 출력
+    for art_line, manual_line in zip(art_lines, manual_lines):
+        print(f"{art_line}  {manual_line}")
+
+    print()  # 마지막에 빈 줄 추가
 
 
 if __name__ == "__main__":

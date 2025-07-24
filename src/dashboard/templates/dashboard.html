@@ -2,44 +2,73 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>스마트 웹 퍼징 대시보드</title>
+    <title>스마트 웹 퍼저 대시보드</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Prism.js for JSON syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
     <script defer src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
 </head>
 <body>
     <h2>
-        🛡️ 스마트 웹 퍼징 대시보드
+        <img src="{{ url_for('static', filename='logo.png') }}" style="width: 64px; height: 64px; vertical-align: middle;">
+         스마트 웹 퍼저 대시보드
         <span id="refresh-timer" style="font-size: 0.75em; margin-left: 12px; color: #555;"></span>
     </h2>
     <div class="container">
         <!-- 왼쪽 : 원본 요청 -->
         <div class="column">
-            <div class="section-title" id="original-request-title">📦 원본 요청 목록</div>
+            <div class="section-header">
+                <div class="section-title" id="original-request-title">📦 원본 요청 목록</div>
+                <button id="filter-toggle" class="filter-btn" title="퍼징 요청이 있는 항목만 표시">
+                    🔍 전체
+                </button>
+            </div>
             <div id="original-request-list"></div>
 
-            <div class="section-title">📝 원본 요청 본문</div>
-            <textarea id="request-body" readonly></textarea>
+            <div class="section-title">
+                📝 원본 요청
+                <button id="scroll-sync-toggle" class="diff-toggle" title="스크롤 동기화">SYNC</button>
+            </div>
+            <div id="request-body-container" class="original-container"></div>
 
-            <div class="section-title">📬 원본 응답 본문</div>
-            <textarea id="response-body" readonly></textarea>
+            <div class="section-title">📬 원본 응답</div>
+            <div id="response-body-container" class="original-container"></div>
         </div>
 
         <!-- 가운데 : 퍼징 요청 및 응답 -->
         <div class="column">
-            <div class="section-title" id="fuzz-request-title">📨 퍼징 요청 선택</div>
+            <div class="section-header">
+                <div class="section-title" id="fuzz-request-title">📨 퍼징 요청 목록</div>
+                <div class="filter-group">
+                    <button id="vuln-filter-toggle" class="filter-btn" title="취약점이 발견된 퍼징 요청만 표시">
+                        🔍 전체
+                    </button>
+                    <select id="scanner-filter" class="filter-select" title="스캐너 종류로 필터링">
+                        <option value="">전체 스캐너</option>
+                    </select>
+                </div>
+            </div>
             <div id="fuzz-request-list"></div>
 
-            <div class="section-title">📤 퍼징 요청 본문</div>
-            <textarea id="fuzz-body" readonly></textarea>
+            <div class="section-title">
+                📤 퍼징 요청
+                <button id="fuzz-request-diff-toggle" class="diff-toggle" title="차이점 강조 표시">DIFF</button>
+            </div>
+            <div id="fuzz-body-container" class="diff-container"></div>
 
-            <div class="section-title">📥 퍼징 응답 본문</div>
-            <textarea id="fuzz-response" readonly></textarea>
+            <div class="section-title">
+                📥 퍼징 응답
+                <button id="fuzz-response-diff-toggle" class="diff-toggle" title="차이점 강조 표시">DIFF</button>
+            </div>
+            <div id="fuzz-response-container" class="diff-container"></div>
         </div>
 
         <!-- 오른쪽 : 분석 결과 -->
         <div class="column">
             <div class="section-title">📊 취약점 분석 결과</div>
-            <textarea id="analysis-result" readonly></textarea>
+            <div id="analysis-result" class="analysis-container" data-placeholder="📊 퍼징 요청을 선택하면&#10;취약점 분석 결과가 표시됩니다"></div>
         </div>
     </div>
 </body>

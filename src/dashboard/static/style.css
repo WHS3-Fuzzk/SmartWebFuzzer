@@ -7,7 +7,7 @@ html, body {
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 15px;
+    padding: 1px;
     background-color: #f5f7fa;
     color: #333;
     box-sizing: border-box;
@@ -16,10 +16,11 @@ body {
 }
 
 h2 {
-    margin-bottom: 15px;
+    margin-top: 4px;
+    margin-bottom: 2px;
     color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 8px;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 2px;
     flex-shrink: 0;
 }
 
@@ -52,6 +53,14 @@ h2 {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* 섹션 헤더 */
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
 /* 섹션 제목 스타일 */
 .section-title {
     font-weight: 600;
@@ -61,6 +70,86 @@ h2 {
     padding: 8px 12px;
     border-radius: 6px;
     border-left: 4px solid #3498db;
+    margin-bottom: 8px;
+}
+
+/* 섹션 헤더 내부의 제목 특별 스타일 */
+.section-header .section-title {
+    margin-bottom: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* 필터 그룹 */
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 필터 버튼 */
+.filter-btn {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    height: 32px;
+    line-height: 1;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-btn:hover {
+    background-color: #7f8c8d;
+}
+
+.filter-btn.active {
+    background-color: #e74c3c;
+}
+
+.filter-btn.active:hover {
+    background-color: #c0392b;
+}
+
+/* 필터 셀렉트 박스 */
+.filter-select {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 100px;
+    height: 32px;
+    line-height: 1;
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.filter-select:hover {
+    background-color: #7f8c8d;
+}
+
+.filter-select:focus {
+    outline: none;
+    background-color: #7f8c8d;
+}
+
+.filter-select option {
+    background-color: #ecf0f1;
+    color: #2c3e50;
 }
 
 /* textarea 기본 스타일 */
@@ -97,8 +186,8 @@ textarea:focus {
 
 /* 요청 라디오 항목 간격 및 스타일 */
 .request-item {
-    margin-bottom: 8px;
-    padding: 8px;
+    margin-bottom: 2px;
+    padding: 2px;
     border-radius: 6px;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     cursor: pointer;
@@ -116,19 +205,71 @@ textarea:focus {
 }
 
 .request-item-content {
-    display: block;
+    display: flex;
+    align-items: center;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 13px;
+    min-width: 0; /* flex 아이템이 축소될 수 있도록 */
 }
 
-/* 각 textarea 높이 통일 */
-#request-body,
-#response-body,
-#fuzz-body,
-#fuzz-response {
-    min-height: 120px;
-    flex: 1;
+/* URL 표시 부분의 스타일 개선 */
+.request-item-content span:not(.vulnerability-icon) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.request-item-content span:nth-child(2) {
+    flex: 1; /* URL 부분이 사용 가능한 공간을 차지 */
+    min-width: 0; /* 축소 가능하도록 */
+}
+
+/* 취약점 아이콘 */
+.vulnerability-icon {
+    margin-left: auto;
+    font-size: 14px;
+    color: #e74c3c;
+    transition: opacity 0.3s ease;
+}
+
+.bracket-label {
+    display: inline-block;
+    text-align: center;
+    font-weight: 600;
+    font-family: monospace;
+    position: relative;
+}
+
+.bracket-label::before {
+    content: '[';
+    position: absolute;
+    left: 0;
+}
+
+.bracket-label::after {
+    content: ']';
+    position: absolute;
+    right: 0;
+}
+
+/* 빈 상태 메시지 스타일 */
+.empty-placeholder {
+    position: relative;
+}
+
+.empty-placeholder::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #7f8c8d;
+    font-style: italic;
+    text-align: center;
+    pointer-events: none;
+    white-space: pre-line;
+    z-index: 1;
 }
 
 /* 분석 결과 영역 */
@@ -139,6 +280,107 @@ textarea:focus {
     font-size: 12px;
     line-height: 1.5;
     position: relative;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+.analysis-container {
+    min-height: 200px;
+    flex: 2;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    position: relative;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+/* JSON syntax highlighting 스타일 */
+.json-highlight {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.json-highlight .token.property {
+    color: #0066cc;
+    font-weight: 600;
+}
+
+.json-highlight .token.string {
+    color: #28a745;
+}
+
+.json-highlight .token.number {
+    color: #fd7e14;
+}
+
+.json-highlight .token.boolean {
+    color: #6f42c1;
+    font-weight: 600;
+}
+
+.json-highlight .token.null {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.json-highlight .token.punctuation {
+    color: #495057;
+}
+
+/* Prism.js 기본 스타일 오버라이드 */
+.json-highlight code {
+    background: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    font-size: inherit !important;
+    font-family: inherit !important;
+}
+
+/* 분석 결과 내 JSON 블록 스타일 */
+.analysis-json-block {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    position: relative;
+}
+
+.analysis-json-block::before {
+    content: "JSON";
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background-color: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 /* 로딩 애니메이션 */
@@ -160,31 +402,240 @@ textarea:focus {
     color: #666;
 }
 
-/* 스크롤바 스타일 */
-textarea::-webkit-scrollbar,
-#original-request-list::-webkit-scrollbar,
-#fuzz-request-list::-webkit-scrollbar {
-    width: 8px;
+/* Diff 하이라이팅 스타일 */
+.diff-container {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 120px;
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
 }
 
-textarea::-webkit-scrollbar-track,
-#original-request-list::-webkit-scrollbar-track,
-#fuzz-request-list::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
+.diff-added {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+}
+
+.diff-removed {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+    text-decoration: line-through;
+}
+
+.diff-modified {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin: 0 1px;
+}
+
+.diff-toggle {
+    margin-left: 10px;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.diff-toggle:hover {
+    background: #0056b3;
+}
+
+.diff-toggle.active {
+    background: #28a745;
+}
+
+/* 원본 텍스트 컨테이너 */
+.original-container {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    background-color: #fafbfc;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 120px;
+    flex: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    transition: border-color 0.3s ease;
+}
+
+/* 취약점 분석 결과 스타일 */
+.vulnerability-analysis {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.vulnerability-card {
+    background: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.vulnerability-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.vulnerability-header {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 600;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.vulnerability-type {
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 12px;
     border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-textarea::-webkit-scrollbar-thumb,
-#original-request-list::-webkit-scrollbar-thumb,
-#fuzz-request-list::-webkit-scrollbar-thumb {
-    background-color: #bdc3c7;
+.vulnerability-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.vulnerability-table tr {
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.2s ease;
+}
+
+.vulnerability-table tr:last-child {
+    border-bottom: none;
+}
+
+.vulnerability-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.vulnerability-table td {
+    padding: 10px 16px;
+    vertical-align: top;
+}
+
+.field-label {
+    font-weight: 700;
+    color: #495057;
+    width: 100px;
+    background-color: #f8f9fa;
+    border-right: 1px solid #e9ecef;
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.field-value {
+    color: #212529;
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+.request-info {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    border: 1px solid #c8e6c9;
+    display: inline-block;
+}
+
+.method-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    border: 1px solid #bbdefb;
+}
+
+.parameter-badge {
+    background: #fff3e0;
+    color: #f57c00;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    border: 1px solid #ffe0b2;
+}
+
+.payload-code {
+    background: #f5f5f5;
+    color: #d32f2f;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 12px;
+    border: 1px solid #e0e0e0;
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.extra-info {
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    padding: 12px 16px;
+}
+
+.extra-info h4 {
+    color: #6c757d;
+    font-size: 13px;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+.json-code {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 10px;
     border-radius: 4px;
-}
-
-textarea::-webkit-scrollbar-thumb:hover,
-#original-request-list::-webkit-scrollbar-thumb:hover,
-#fuzz-request-list::-webkit-scrollbar-thumb:hover {
-    background-color: #95a5a6;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border: 1px solid #e9ecef;
 }
 
 /* 반응형 디자인 */
@@ -206,4 +657,35 @@ textarea::-webkit-scrollbar-thumb:hover,
     #analysis-result {
         min-height: 150px;
     }
+}
+
+/* 스크롤바 스타일 */
+textarea::-webkit-scrollbar,
+#original-request-list::-webkit-scrollbar,
+#fuzz-request-list::-webkit-scrollbar,
+#analysis-result::-webkit-scrollbar {
+    width: 8px;
+}
+
+textarea::-webkit-scrollbar-track,
+#original-request-list::-webkit-scrollbar-track,
+#fuzz-request-list::-webkit-scrollbar-track,
+#analysis-result::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+    border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb,
+#original-request-list::-webkit-scrollbar-thumb,
+#fuzz-request-list::-webkit-scrollbar-thumb,
+#analysis-result::-webkit-scrollbar-thumb {
+    background-color: #bdc3c7;
+    border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover,
+#original-request-list::-webkit-scrollbar-thumb:hover,
+#fuzz-request-list::-webkit-scrollbar-thumb:hover,
+#analysis-result::-webkit-scrollbar-thumb:hover {
+    background-color: #95a5a6;
 }

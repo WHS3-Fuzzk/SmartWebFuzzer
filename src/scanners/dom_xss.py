@@ -8,19 +8,25 @@ BaseScanner를 상속받아 요청 변조 및 결과 분석 기능을 구현합�
 # 1. 표준 라이브러리
 import atexit
 import copy
+import gzip
+import io
 import threading
 from datetime import datetime
-from typing import Any, Dict, Iterable, List
-from urllib.parse import urlparse, urlencode
+from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import urlencode, urlparse
 
 # 2. 서드파티 라이브러리
-from selenium import webdriver
+import chardet
+from selenium.common.exceptions import (
+    InvalidCookieDomainException,
+    TimeoutException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import InvalidCookieDomainException, WebDriverException
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from seleniumwire import webdriver
 
 # 3. 자체 모듈 (로컬)
 from db_writer import (
@@ -29,8 +35,44 @@ from db_writer import (
     insert_vulnerability_scan_result,
 )
 from scanners.base import BaseScanner
-from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
+from scanners.utils import to_fuzzed_request_dict
 from typedefs import RequestData
+
+
+def extract_response_body_with_check(driver, url: str) -> Optional[str]:
+    """
+    응답 본문을 추출하고 'whs3fuzzk' 문자열이 포함되어 있는지 확인.
+    - 포함되어 있으면 'detected' 문자열 반환
+    - 아니면 디코딩된 본문을 반환
+    - 오류나 조건 미충족 시 None 반환
+    """
+    for request in driver.requests:
+        if request.response and request.url == url:
+            body = request.response.body
+            headers = request.response.headers
+            content_encoding = headers.get("Content-Encoding", "").lower()
+            content_type = headers.get("Content-Type", "").lower()
+
+            # gzip 해제
+            if "gzip" in content_encoding:
+                body = gzip.GzipFile(fileobj=io.BytesIO(body)).read()
+
+            # 이진 데이터면 건너뜀
+            if not (content_type.startswith("text") or "json" in content_type):
+                return None
+
+            # 인코딩 감지 및 디코딩
+            detected = chardet.detect(body)
+            encoding = detected["encoding"] or "utf-8"
+            decoded = body.decode(encoding, errors="replace")
+
+            # "whs3fuzzk" 문자열 포함 여부 확인
+            if "whs3fuzzk" in decoded:
+                print("[INFO] XSS payload 'whs3fuzzk' found in response body")
+                return "detected"
+            return decoded
+
+    return None
 
 
 class DomXss(BaseScanner):
@@ -156,90 +198,36 @@ class DomXss(BaseScanner):
                 "error_detected": True,
                 "error_reason": "Browser error page detected (div.error-code)",
             }
-
-        # ✅ 4. 위험한 DOM 메서드 목록
-        dangerous_methods = [
-            "document.write",
-            "document.writeln",
-            "document.domain",
-            "innerHTML",
-            "outerHTML",
-            "insertAdjacentHTML",
-            "onerror",
-            "onload",
-            "eval",
-            "Function",
-            "setTimeout",
-            "setInterval",
-            "location.href",
-            "location.assign",
-            "location.replace",
-            "window.name",
-            "window.location",
-            "document.location",
-            "window.open",
-            "window.postMessage",
-            "localStorage",
-            "sessionStorage",
-            "createElement",
-            "appendChild",
-            "insertBefore",
-            "replaceChild",
-            "removeChild",
-            "cloneNode",
-            "setAttribute",
-            "addEventListener",
-            "attachEvent",
-            "document.cookie",
-            "document.referrer",
-            "navigator.userAgent",
-            "navigator.clipboard",
-        ]
-
-        # ✅ 5. 스크립트 태그 내 코드 수집
-        script_contents = driver.execute_script(
-            """
-            let scripts = document.getElementsByTagName('script');
-            let result = [];
-            for (let s of scripts) {
-                if (s.innerText) {
-                    result.push(s.innerText);
-                }
+        # ✅ 4. 응답 본문 추출 및 인코딩 자동 감지 + 압축 해제 처리
+        response_check = extract_response_body_with_check(driver, url)
+        if response_check == "detected":
+            print("[INFO] XSS payload 감지 — DOM 분석 생략")
+            return {
+                "xss_detected": False,
+                "url": url,
+                "error_detected": False,
+                "injected_context": "<from response body>",
             }
-            return result;
+
+        # ✅ 5. 실제 DOM 삽입 여부 확인 (스크립트 수집 여부만 조건)
+        xss_detected = driver.execute_script(
+            """
+            return document.getElementsByTagName('whs3fuzzk').length > 0;
         """
         )
 
-        # ✅ 6. 스크립트 코드에 위험한 메서드가 포함되어 있는지 검사
-        detected_dangerous_usage = False
-        for script in script_contents:
-            for method in dangerous_methods:
-                if method in script:
-                    detected_dangerous_usage = True
-                    print(f"[!] 위험 메서드 감지: {method}")
-                    break
-            if detected_dangerous_usage:
-                break
-
-        # ✅ 7. 실제 DOM 삽입 여부 확인 (조건부 실행)
-        xss_detected = False
         injected_context = None
-        if detected_dangerous_usage:
-            xss_detected = driver.execute_script(
+        if xss_detected:
+            injected_context = driver.execute_script(
                 """
-                return document.getElementsByTagName('whs3fuzzk').length > 0;
+                const elem = document.getElementsByTagName('whs3fuzzk')[0];
+                if (elem && elem.parentElement) {
+                    return elem.parentElement.outerHTML;
+                }
+                return null;
             """
             )
-            if xss_detected:
-                injected_context = driver.execute_script(
-                    """
-                    const elem = document.getElementsByTagName('whs3fuzzk')[0];
-                    if (elem && elem.parentElement) {
-                        return elem.parentElement.outerHTML;
-                    }
-                    return null;
-                """
-                )
+
         return {
             "xss_detected": xss_detected,
             "url": url,
@@ -261,13 +249,25 @@ class DomXss(BaseScanner):
             options.add_argument("--headless")
             options.add_argument("--disable-gpu")
             options.add_argument("--window-size=1920,1080")
-            self.driver = webdriver.Chrome(options=options)
+            options.add_argument("--ignore-certificate-errors")
+            seleniumwire_options = {
+                "proxy": {
+                    "http": "http://127.0.0.1:8080",
+                    "https": "http://127.0.0.1:8080",  # mitmproxy가 HTTPS도 해제해줘야함
+                    "no_proxy": "localhost,127.0.0.1",
+                },
+            }
+
+            self.driver = webdriver.Chrome(
+                options=options, seleniumwire_options=seleniumwire_options
+            )
             scheme = "http://" if request["meta"].get("is_http", 1) == 1 else "https://"
             domain = request["meta"]["domain"]
             base_path = "/" + "/".join(
                 request["meta"].get("path", "/").strip("/").split("/")[:2]
             )
             base_url = f"{scheme}{domain}{base_path}/"
+            print(base_url)
             if base_url:
                 print(f"[INFO] Accessing base (driver initialized): {base_url}")
                 self.driver.get(base_url)
@@ -287,14 +287,8 @@ class DomXss(BaseScanner):
             request
         )  # ✅ 드라이버가 없다면 최초 한 번만 실행
 
-        # 1️⃣ 비동기 변조 요청 전송
-        async_results = self._dispatch_fuzz_requests(request)
         results = []
-
-        # 2️⃣ 응답 수집 후 분석 수행
-        for fuzz_request, async_result in async_results:
-            async_result.get(timeout=30)  # Celery 결과 대기
-
+        for fuzz_request in self.generate_fuzzing_requests(request):
             # 3️⃣ URL 구성
             full_url = self._build_full_url(fuzz_request)
             print(f"[DEBUG] Full URL for analysis: {full_url}")
@@ -324,17 +318,6 @@ class DomXss(BaseScanner):
                 print(f"[-] DOM-XSS 없음 → {full_url}")
 
         return results
-
-    def _dispatch_fuzz_requests(self, request: RequestData):
-        """
-        주어진 요청에 대해 fuzzing request를 생성하고 비동기 Celery 작업으로 전송
-        """
-        async_results = []
-        for fuzz_request in self.generate_fuzzing_requests(request):
-            task = send_fuzz_request.s(request_data=fuzz_request)
-            result = task.apply_async()
-            async_results.append((fuzz_request, result))
-        return async_results
 
     def _build_full_url(self, fuzz_request: RequestData) -> str:
         """
@@ -420,62 +403,3 @@ class DomXss(BaseScanner):
             }
         )
         print(f"✅ DOM XSS 스캔 결과 저장 완료: {result_id}")
-
-
-def to_fuzzed_request_dict(
-    fuzzing_request: RequestData,
-    original_request_id: int,
-    scanner: str,
-    payload: str,
-) -> dict:
-    """traffic_filter.py의 flow_to_request_dict 구조에 맞게 변환"""
-    meta = fuzzing_request["meta"]
-    headers = fuzzing_request.get("headers")
-
-    # headers를 딕셔너리로 변환
-    headers_dict = {}
-    if headers:
-        for h in headers:
-            headers_dict[h["key"]] = h["value"]
-
-    return {
-        "original_request_id": original_request_id,
-        "scanner": scanner,
-        "payload": payload,
-        "is_http": meta.get("is_http"),
-        "http_version": meta.get("http_version"),
-        "domain": meta.get("domain"),
-        "path": meta.get("path"),
-        "method": meta.get("method"),
-        "timestamp": meta.get("timestamp"),
-        "headers": headers_dict,
-        "query": fuzzing_request.get("query_params", []),
-        "body": fuzzing_request.get("body"),
-    }
-
-
-def to_fuzzed_response_dict(fuzzed_response: dict) -> dict:
-    """traffic_filter.py의 flow_to_response_dict 구조에 맞게 변환"""
-
-    headers = fuzzed_response.get("headers", {})
-    content_type = headers.get("Content-Type", "")
-
-    # Content-Type에서 charset 추출
-    charset = None
-    if "charset=" in content_type.lower():
-        charset = content_type.split("charset=")[-1].strip()
-
-    body_dict = {
-        "content_type": content_type,
-        "charset": charset,
-        "content_length": headers.get("Content-Length"),
-        "content_encoding": headers.get("Content-Encoding"),
-        "body": fuzzed_response.get("body"),  # 원본 바이트 데이터
-    }
-    return {
-        "http_version": fuzzed_response.get("http_version"),
-        "status_code": fuzzed_response.get("status_code"),
-        "timestamp": fuzzed_response.get("timestamp"),
-        "headers": headers,
-        "body": body_dict,
-    }

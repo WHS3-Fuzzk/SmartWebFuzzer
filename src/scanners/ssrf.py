@@ -15,6 +15,7 @@ from db_writer import (
     insert_vulnerability_scan_result,
 )
 from scanners.base import BaseScanner
+from scanners.utils import to_fuzzed_request_dict, to_fuzzed_response_dict
 from fuzzing_scheduler.fuzzing_scheduler import celery_app
 from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 from typedefs import RequestData
@@ -477,61 +478,3 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
             }
 
     return vulnerability
-
-
-def to_fuzzed_request_dict(
-    fuzzing_request: RequestData,
-    original_request_id: int,
-    scanner: str,
-    payload: str,
-) -> dict:
-    """traffic_filter.py의 flow_to_request_dict 구조에 맞게 변환"""
-    meta = fuzzing_request["meta"]
-    headers = fuzzing_request.get("headers")
-
-    # headers를 딕셔너리로 변환
-    headers_dict = {}
-    if headers:
-        for h in headers:
-            headers_dict[h["key"]] = h["value"]
-
-    return {
-        "original_request_id": original_request_id,
-        "scanner": scanner,
-        "payload": payload,
-        "is_http": meta.get("is_http"),
-        "http_version": meta.get("http_version"),
-        "domain": meta.get("domain"),
-        "path": meta.get("path"),
-        "method": meta.get("method"),
-        "timestamp": meta.get("timestamp"),
-        "headers": headers_dict,
-        "query": fuzzing_request.get("query_params", []),
-        "body": fuzzing_request.get("body"),
-    }
-
-
-def to_fuzzed_response_dict(fuzzed_response: dict) -> dict:
-    """traffic_filter.py의 flow_to_response_dict 구조에 맞게 변환"""
-    headers = fuzzed_response.get("headers", {})
-    content_type = headers.get("Content-Type", "")
-
-    # Content-Type에서 charset 추출
-    charset = None
-    if "charset=" in content_type.lower():
-        charset = content_type.split("charset=")[-1].strip()
-
-    body_dict = {
-        "content_type": content_type,
-        "charset": charset,
-        "content_length": headers.get("Content-Length"),
-        "content_encoding": headers.get("Content-Encoding"),
-        "body": fuzzed_response.get("body"),  # 원본 바이트 데이터
-    }
-    return {
-        "http_version": fuzzed_response.get("http_version"),
-        "status_code": fuzzed_response.get("status_code"),
-        "timestamp": fuzzed_response.get("timestamp"),
-        "headers": headers,
-        "body": body_dict,
-    }
