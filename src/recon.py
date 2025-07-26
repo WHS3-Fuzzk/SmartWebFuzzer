@@ -69,7 +69,7 @@ def run_recon(domain: str, path: str) -> int:
             env=env,
         )
     except subprocess.CalledProcessError:
-        print(f"[RECON] ERROR! wad 실행 실패")
+        print("[RECON] ERROR! wad 실행 실패")
         return -1
 
     match = re.search(r"({.*})", result.stdout, re.DOTALL)

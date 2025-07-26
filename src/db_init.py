@@ -302,7 +302,7 @@ def initialize_redis_db() -> bool:
 
         return True
     except (redis.ConnectionError, redis.TimeoutError):
-        print(f"[DB] ERROR! Redis 연결 실패")
+        print("[DB] ERROR! Redis 연결 실패")
         return False
 
 

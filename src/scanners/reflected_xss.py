@@ -7,7 +7,6 @@ BaseScanner를 상속받아 요청 변조 및 결과 분석 기능을 구현합�
 """
 
 # ✅ 표준 라이브러리
-import json
 import copy
 import time
 from datetime import datetime
@@ -110,7 +109,7 @@ def check_payload_in_attributes(html_text, payload):
     if custom_tags:
         results += inspect_custom_tag_attributes(soup, markers, payload)
     else:
-        print(f"[rXSS] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
+        print("[rXSS] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
 
     return results
 

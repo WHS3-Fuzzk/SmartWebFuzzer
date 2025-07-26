@@ -267,7 +267,6 @@ class DomXss(BaseScanner):
             )
             base_url = f"{scheme}{domain}{base_path}/"
             if base_url:
-                # print(f"[{self.vulnerability_name}] Accessing base (driver initialized)\n\t: {base_url}")
                 self.driver.get(base_url)
 
     def run(self, request_id: int, request: RequestData) -> List[Dict[str, Any]]:

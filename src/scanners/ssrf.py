@@ -160,7 +160,6 @@ class SSRFScanner(BaseScanner):
                     # URL 인코딩된 폼 데이터
                     for keyword in self.keywords:
                         if keyword in body_content.lower():
-                            # print(f"[{self.vulnerability_name}] Fuzzing body with keyword: {keyword}")
 
                             # 키워드가 포함된 파라미터를 모두 퍼징 (stockApi, myApiKey 등도 포함)
                             pattern = rf"([^&=]*{keyword}[^&=]*=)([^&]+)"
