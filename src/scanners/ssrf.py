@@ -126,6 +126,9 @@ class SSRFScanner(BaseScanner):
         """SSRF 페이로드를 생성하여 퍼징 요청을 만듭니다."""
         payloads = [
             "@198.51.100.42",
+            "x@198.51.100.42",
+            "@3325256746",
+            "x@3325256746",
             "file:///etc/services",
         ]
 
