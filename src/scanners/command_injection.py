@@ -190,7 +190,9 @@ class CommandiScanner(BaseScanner):
 
                         # 취약점이 발견된 경우에만 vulnerability_scan_results에 저장
                         if result and result != {}:
-                            print(f"[{self.vulnerability_name}] {result.get('evidence', '')}")
+                            print(
+                                f"[{self.vulnerability_name}] {result.get('evidence', '')}"
+                            )
                             scan_result = {
                                 "vulnerability_name": self.vulnerability_name,
                                 "original_request_id": request_id,
@@ -217,10 +219,10 @@ class CommandiScanner(BaseScanner):
                                 },
                             }
                             try:
-                                insert_vulnerability_scan_result(
-                                    scan_result
+                                insert_vulnerability_scan_result(scan_result)
+                                print(
+                                    f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료"
                                 )
-                                print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
                             except Exception as e:
                                 pass
 

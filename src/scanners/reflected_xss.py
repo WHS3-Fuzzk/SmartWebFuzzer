@@ -304,9 +304,13 @@ class ReflectedXss(BaseScanner):
                             }
                             # 취약점 스캔 결과를 DB에 저장
                             insert_vulnerability_scan_result(scan_result)
-                            print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
+                            print(
+                                f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료"
+                            )
                         else:
-                            print(f"[{self.vulnerability_name}] 취약점이 발견되지 않았습니다.")
+                            print(
+                                f"[{self.vulnerability_name}] 취약점이 발견되지 않았습니다."
+                            )
 
                         print(f"[{self.vulnerability_name}] 퍼징 요청 저장 완료")
                     else:

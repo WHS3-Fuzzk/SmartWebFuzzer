@@ -153,7 +153,7 @@ def main():
     threading.Thread(
         target=ScannerTrigger(max_workers=args.threads).run, daemon=True
     ).start()
-    
+
     time.sleep(1)
     print("[MAIN] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()

@@ -313,7 +313,7 @@ class DomXss(BaseScanner):
                     request_id, fuzz_request, dom_result.get("injected_context")
                 )
             # else:
-                # print(f"[{self.vulnerability_name}] 취약점 감지되지 않음.")
+            # print(f"[{self.vulnerability_name}] 취약점 감지되지 않음.")
 
         return results
 

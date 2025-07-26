@@ -185,7 +185,9 @@ class FileDownloadScanner(BaseScanner):
 
             # print(f"[{self.vulnerability_name}] 현재 stage 값: {self.current_stage}")
             if self.current_stage == 1:
-                print(f"[{self.vulnerability_name}] STAGE 1 → 파일 다운로드 기반 비교 진입")
+                print(
+                    f"[{self.vulnerability_name}] STAGE 1 → 파일 다운로드 기반 비교 진입"
+                )
 
                 # HTTP 응답 body를 직접 비교
                 fuzz_body = fuzz_response.get("body", b"")
@@ -200,7 +202,9 @@ class FileDownloadScanner(BaseScanner):
                 if isinstance(fuzz_body, str):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
                 if fuzz_body and len(fuzz_body) > 0:
-                    print(f"[{self.vulnerability_name}] STAGE {self.current_stage} → 다운로드 응답 감지됨")
+                    print(
+                        f"[{self.vulnerability_name}] STAGE {self.current_stage} → 다운로드 응답 감지됨"
+                    )
 
             # Celery 분석 요청
 

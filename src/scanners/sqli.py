@@ -204,7 +204,9 @@ class SqliScanner(BaseScanner):
                             #     f" - DBMS: {scan_result['extra']['dbms']}\n"
                             #     f" - 근거: {scan_result['extra']['details']}"
                             # )
-                            print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
+                            print(
+                                f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료"
+                            )
 
                     pending.remove(res)
             time.sleep(0.5)
