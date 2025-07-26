@@ -352,7 +352,7 @@ class SSRFScanner(BaseScanner):
                             )
                         else:
                             print(
-                                "[{self.vulnerability_name}] SSRF 취약점이 발견되지 않았습니다."
+                                f"[{self.vulnerability_name}] SSRF 취약점이 발견되지 않았습니다."
                             )
 
                         print(f"[{self.vulnerability_name}] 퍼징 요청 저장 완료")
