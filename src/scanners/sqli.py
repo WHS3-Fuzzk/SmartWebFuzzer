@@ -197,13 +197,14 @@ class SqliScanner(BaseScanner):
                             }
 
                             insert_vulnerability_scan_result(scan_result)
-                            print(
-                                f"[SQL Injection 탐지됨]\n"
-                                f" - 파라미터: {scan_result['parameter']}\n"
-                                f" - 입력값: {scan_result['payload']}\n"
-                                f" - DBMS: {scan_result['extra']['dbms']}\n"
-                                f" - 근거: {scan_result['extra']['details']}"
-                            )
+                            # print(
+                            #     f"[SQLi]\n"
+                            #     f" - 파라미터: {scan_result['parameter']}\n"
+                            #     f" - 입력값: {scan_result['payload']}\n"
+                            #     f" - DBMS: {scan_result['extra']['dbms']}\n"
+                            #     f" - 근거: {scan_result['extra']['details']}"
+                            # )
+                            print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
 
                     pending.remove(res)
             time.sleep(0.5)
@@ -221,9 +222,9 @@ def analyze_response_sqli(response: Dict[str, Any]) -> Dict[str, Any]:
     payload_type = extra.get("fuzz_type", "None")
     elapsed = response.get("elapsed_time", 0)
 
-    print(
-        f"[SQLi 분석] 상태: {status}, 페이로드 타입: {payload_type}, 지연: {elapsed:.2f}s"
-    )
+    # print(
+    #     f"[SQLi] 분석 - 상태: {status}, 페이로드 타입: {payload_type}, 지연: {elapsed:.2f}s"
+    # )
     if payload_type == "time":
         if elapsed >= 4.5:
 

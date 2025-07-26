@@ -35,7 +35,7 @@ class CommandiScanner(BaseScanner):
     # 취약점 이름 (예: "XSS", "SQLi" 등)
     @property
     def vulnerability_name(self) -> str:
-        return "CMD_injection"
+        return "CMDi"
 
     def is_target(self, request_id: int, request: RequestData) -> bool:
         """
@@ -190,7 +190,7 @@ class CommandiScanner(BaseScanner):
 
                         # 취약점이 발견된 경우에만 vulnerability_scan_results에 저장
                         if result and result != {}:
-                            print(f"[취약점 발견] {result.get('evidence', '')}")
+                            print(f"[{self.vulnerability_name}] {result.get('evidence', '')}")
                             scan_result = {
                                 "vulnerability_name": self.vulnerability_name,
                                 "original_request_id": request_id,
@@ -217,9 +217,10 @@ class CommandiScanner(BaseScanner):
                                 },
                             }
                             try:
-                                result_id = insert_vulnerability_scan_result(
+                                insert_vulnerability_scan_result(
                                     scan_result
                                 )
+                                print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
                             except Exception as e:
                                 pass
 

@@ -92,7 +92,7 @@ def start_celery_worker(
 ) -> Optional[subprocess.Popen]:
     """단일 Celery 워커 시작"""
     cmd = create_worker_command(queue_name, concurrency)
-    print(f"[INFO] {queue_name} 워커 시작 중...")
+    print(f"[MAIN] {queue_name} 워커 시작 중...")
 
     try:
         worker = subprocess.Popen(  # pylint: disable=consider-using-with
@@ -116,7 +116,7 @@ def start_celery_workers(workers: int = 4) -> List[subprocess.Popen]:
     Args:
         workers: 퍼징 요청을 보내는 워커 수 (기본값: 4)
     """
-    print(f"[INFO] Celery 워커 시작 중... (워커 수: {workers})")
+    print(f"[MAIN] Celery 워커 시작 중... (워커 수: {workers})")
 
     workers_list = []
 

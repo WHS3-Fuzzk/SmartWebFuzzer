@@ -110,7 +110,7 @@ def check_payload_in_attributes(html_text, payload):
     if custom_tags:
         results += inspect_custom_tag_attributes(soup, markers, payload)
     else:
-        print("[-] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
+        print(f"[rXSS] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
 
     return results
 
@@ -171,7 +171,7 @@ class ReflectedXss(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "reflected_xss"
+        return "rXSS"
 
     def __init__(self):
         # base_dir = os.path.dirname(os.path.abspath(__file__))  # src/scanners 폴더 경로
@@ -219,10 +219,10 @@ class ReflectedXss(BaseScanner):
                     "payload": payload,
                 }
 
-                print(
-                    "[+] Generated fuzzing request with payload on "
-                    f"{fuzzed_params[i]['key']}: {payload}"
-                )
+                # print(
+                #     "[+] Generated fuzzing request with payload on "
+                #     f"{fuzzed_params[i]['key']}: {payload}"
+                # )
 
                 yield original_request
 
@@ -237,13 +237,13 @@ class ReflectedXss(BaseScanner):
         pending = list(async_results)
 
         while pending:
-            print(f"[{self.vulnerability_name}] 대기 중인 작업 수: {len(pending)}")
+            # print(f"[{self.vulnerability_name}] 대기 중인 작업 수: {len(pending)}")
             for res in pending[:]:
                 if res.ready():
                     result = res.get()
-                    print(
-                        f"완료된 작업: {res.id}"
-                    )  # result 결과 보기 생략 (너무 길어짐)
+                    # print(
+                    #     f"[{self.vulnerability_name}] 완료된 작업: {res.id}"
+                    # )  # result 결과 보기 생략 (너무 길어짐)
                     # 추가 동작
                     if result and res.parent is not None:
 
@@ -303,14 +303,14 @@ class ReflectedXss(BaseScanner):
                                 },
                             }
                             # 취약점 스캔 결과를 DB에 저장
-                            result_id = insert_vulnerability_scan_result(scan_result)
-                            print(f"취약점 스캔 결과 저장 완료: {result_id}")
+                            insert_vulnerability_scan_result(scan_result)
+                            print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
                         else:
-                            print("취약점이 발견되지 않았습니다.")
+                            print(f"[{self.vulnerability_name}] 취약점이 발견되지 않았습니다.")
 
-                        print(f"퍼징 요청 저장 완료: {fuzzed_request_id}")
+                        print(f"[{self.vulnerability_name}] 퍼징 요청 저장 완료")
                     else:
-                        print(f"완료된 작업: {res.id}, 취약점 없음")
+                        print(f"[{self.vulnerability_name}] 취약점 없음")
 
                     pending.remove(res)
             time.sleep(0.5)
@@ -323,7 +323,7 @@ class ReflectedXss(BaseScanner):
         """
         해당 요청을 변조하여 퍼징 요청 생성 및 전송, 결과 수집
         """
-        print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}\n")
+        # print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}\n")
         # if not self.is_target(request_id, request): # vul.py로 테스트할거면 이거 주석 처리하면됨
         #     return []
 
@@ -341,10 +341,10 @@ class ReflectedXss(BaseScanner):
         results = []
         for async_result in async_results:
             output = async_result.get(timeout=30)
-            print(
-                "페이로드 포함 여부 결과:\n"
-                + json.dumps(output, indent=2, ensure_ascii=False)
-            )
+            # print(
+            #     "[{self.vulnerability_name}] 페이로드 포함 여부 결과:\n"
+            #     + json.dumps(output, indent=2, ensure_ascii=False)
+            # )
             results.append(output)
 
         # ✅ 완료된 비동기 작업의 결과를 수집
@@ -377,8 +377,8 @@ def analyze_response_reflected_xss(response: dict) -> dict:
             "script_check": script_results,
         }
 
-        print(f"[!] 취약점 발견! URL: {vulnerability['url']}")
+        # print(f"[rXSS] 취약점 발견! URL: {vulnerability['url']}")
         return vulnerability
 
-    print("[*] 페이로드가 응답에 없음")
+    print("[rXSS] 페이로드가 응답에 없음")
     return vulnerability

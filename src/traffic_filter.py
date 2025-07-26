@@ -333,5 +333,5 @@ def response(flow: http.HTTPFlow) -> None:
         insert_filtered_response(response_dict, request_id)
     else:
         print(
-            f"[Error] request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
+            f"[ERROR] request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
         )

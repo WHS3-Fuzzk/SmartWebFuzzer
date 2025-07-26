@@ -42,7 +42,7 @@ class FileDownloadScanner(BaseScanner):
         """
         취약점 이름 반환 (대시보드 기록용)
         """
-        return "File Download"
+        return "FD"
 
     def is_target(self, _request_id: int, request: RequestData) -> bool:
         """
@@ -64,9 +64,9 @@ class FileDownloadScanner(BaseScanner):
 
         content_disp = headers.get("Content-Disposition", "").lower()
         if "attachment" not in content_disp:
-            print("[SKIPPED] Content-Disposition 없음 → 퍼징 생략\n")
+            print(f"[{self.vulnerability_name}] Content-Disposition 없음 → 퍼징 생략")
             return False
-        print("[OK] Content-Disposition 있음")
+        print(f"[{self.vulnerability_name}] Content-Disposition 있음 -> 퍼징 시작")
 
         query_params = request.get("query_params") or []
         target_keys = {"filename", "file", "filepath", "download", "host"}
@@ -129,7 +129,7 @@ class FileDownloadScanner(BaseScanner):
                 ),
             }
 
-            print(f"[GEN] STAGE {self.current_stage} → payload: {payload}")
+            # print(f"[GEN] STAGE {self.current_stage} → payload: {payload}")
             yield mutated
 
     def _build_mutated_params(
@@ -156,14 +156,14 @@ class FileDownloadScanner(BaseScanner):
         메인 실행 함수.
         """
         self.request_id = request_id
-        print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}")
+        # print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}")
 
         if not self.is_target(request_id, request):
-            print("[SKIPPED] is_target 조건 불충족")
+            print(f"[{self.vulnerability_name}] is_target 조건 불충족")
             return []
 
         for stage in [1, 2]:
-            print(f"\n=== [STAGE {stage}] 퍼징 시작 ===")
+            print(f"\n[{self.vulnerability_name}]=== [STAGE {stage}] 퍼징 시작 ===")
             self.current_stage = stage
             self._run_stage_fuzzing(request)
 
@@ -183,9 +183,9 @@ class FileDownloadScanner(BaseScanner):
             # 비교 및 성공 여부 판단
             is_same = False  # STAGE 1용
 
-            print(f"현재 stage 값: {self.current_stage}")
+            # print(f"[{self.vulnerability_name}] 현재 stage 값: {self.current_stage}")
             if self.current_stage == 1:
-                print("STAGE 1 → 파일 다운로드 기반 비교 진입")
+                print(f"[{self.vulnerability_name}] STAGE 1 → 파일 다운로드 기반 비교 진입")
 
                 # HTTP 응답 body를 직접 비교
                 fuzz_body = fuzz_response.get("body", b"")
@@ -200,7 +200,7 @@ class FileDownloadScanner(BaseScanner):
                 if isinstance(fuzz_body, str):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
                 if fuzz_body and len(fuzz_body) > 0:
-                    print(f"STAGE {self.current_stage} → 다운로드 응답 감지됨")
+                    print(f"[{self.vulnerability_name}] STAGE {self.current_stage} → 다운로드 응답 감지됨")
 
             # Celery 분석 요청
 
@@ -229,7 +229,6 @@ class FileDownloadScanner(BaseScanner):
             if result:
 
                 if result.get("evidence"):
-                    print(f"[+] 의심 응답 감지됨 → 증거: {result['evidence']}")
                     insert_vulnerability_scan_result(
                         {
                             "vulnerability_name": self.vulnerability_name,
@@ -249,6 +248,7 @@ class FileDownloadScanner(BaseScanner):
                             },
                         }
                     )
+                    print(f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료")
 
 
 @celery_app.task(name="tasks.analyze_file_download_response", queue="analyze_response")

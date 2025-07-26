@@ -98,7 +98,7 @@ def main():
         urls = [u.strip() for u in input_urls.split(",") if u.strip()]
 
     if not urls:
-        print("URL이 입력되지 않았습니다. 종료합니다.")
+        print("[MAIN] ERROR! URL이 입력되지 않았습니다. 종료합니다.")
         return
 
     # --- 스캐너 선택 UI (InquirerPy) ---
@@ -116,24 +116,24 @@ def main():
         qmark="▶",
     ).execute()
     if not selected:
-        print("[ERROR] 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
+        print("[MAIN] ERROR! 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
         return
 
     # 선택된 스캐너만 _REGISTRY에 남기고 나머지는 삭제
     for name in list(_REGISTRY.keys()):
         if name not in selected:
             del _REGISTRY[name]
-    print(f"[INFO] 활성화된 스캐너: {', '.join(selected)}")
+    print(f"[MAIN] 활성화된 스캐너: {', '.join(selected)}")
     print(
-        f"[INFO] 비활성화된 스캐너: {', '.join([s for s in scanner_names if s not in selected])}"
+        f"[MAIN] 비활성화된 스캐너: {', '.join([s for s in scanner_names if s not in selected])}"
     )
 
     # 워커 및 성능 설정
-    print(f"[INFO] 퍼징 요청 워커 수: {args.workers}")
-    print(f"[INFO] 스레드 수: {args.threads}")
+    print(f"[MAIN] 퍼징 요청 워커 수: {args.workers}")
+    print(f"[MAIN] 스레드 수: {args.threads}")
 
     if args.verbose:
-        print("[INFO] 상세 로그 모드 활성화")
+        print("[MAIN] 상세 로그 모드 활성화")
 
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
     os.environ["TARGET_DOMAINS"] = ",".join(domains)
@@ -147,14 +147,15 @@ def main():
     while True:
         if all(worker.poll() is None for worker in celery_workers):
             break
-        print("[INFO] Celery 워커 시작 중...")
+        print("[MAIN] Celery 워커 시작 중...")
 
-    print("[INFO] 스캐너 트리거 시작 중...")
+    print("[MAIN] 스캐너 트리거 시작 중...")
     threading.Thread(
         target=ScannerTrigger(max_workers=args.threads).run, daemon=True
     ).start()
-
-    print("[INFO] mitmproxy 시작 중...")
+    
+    time.sleep(1)
+    print("[MAIN] mitmproxy 시작 중...")
     mitmproxy_process = proxy.run_mitmproxy()
     time.sleep(5)
     # rps 설정
@@ -163,29 +164,29 @@ def main():
 
     driver = None
     try:
-        print("[INFO] Selenium 브라우저 시작")
+        print("[MAIN] Selenium 브라우저 시작")
         driver = proxy.start_browser_and_browse()
 
         for url in urls:
-            print(f"[INFO] 접속 중: {url}")
+            print(f"[MAIN] 접속 중: {url}")
             try:
                 driver.get(url)
-                print(f"[SUCCESS] {url} 접속 성공!")
-            except WebDriverException as exc:
-                print(f"[ERROR] {url} 접속 실패: {exc}")
+                print(f"[MAIN] SUCCESS! {url} 접속 성공!")
+            except WebDriverException:
+                print(f"[MAIN] ERROR! {url} 접속 실패!")
             time.sleep(3)
 
-        input("[INFO] 아무 키나 누르면 종료됩니다...")
+        input("[MAIN] 아무 키나 누르면 종료됩니다...")
 
-    except (OSError, KeyboardInterrupt) as exc:
-        print(f"[ERROR] 메인 프로세스 중 오류 발생: {exc}")
+    except (OSError, KeyboardInterrupt):
+        print(f"[MAIN] ERROR! 메인 프로세스 중 오류 발생")
 
     finally:
         # DB 백업
-        print("[INFO] DB 백업 시작...")
+        print("[MAIN] DB 백업 시작...")
         db.backup_database()
 
-        print("[INFO] 종료 중...")
+        print("[MAIN] 종료 중...")
 
         # Celery 워커들 종료
         for worker in celery_workers:
@@ -195,16 +196,16 @@ def main():
         if driver:
             try:
                 driver.quit()
-            except WebDriverException as exc:
-                print(f"[WARN] 브라우저 종료 중 오류: {exc}")
+            except WebDriverException:
+                print(f"[MAIN] ERROR! 브라우저 종료 중 오류")
 
         try:
             mitmproxy_process.terminate()
             mitmproxy_process.wait()
-        except (subprocess.SubprocessError, OSError) as exc:
-            print(f"[WARN] mitmproxy 종료 중 오류: {exc}")
+        except (subprocess.SubprocessError, OSError):
+            print(f"[MAIN] ERROR! mitmproxy 종료 중 오류")
 
-        print("[INFO] 종료 완료")
+        print("[MAIN] 종료 완료")
 
 
 def ascii_art(show_manual=False):

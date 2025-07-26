@@ -68,19 +68,19 @@ def run_recon(domain: str, path: str) -> int:
             check=True,
             env=env,
         )
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] wad 실행 실패: {e}")
+    except subprocess.CalledProcessError:
+        print(f"[RECON] ERROR! wad 실행 실패")
         return -1
 
     match = re.search(r"({.*})", result.stdout, re.DOTALL)
     if not match:
-        print("[ERROR] wad 결과에서 JSON을 찾을 수 없습니다.")
+        print("[RECON] ERROR! wad 결과에서 JSON을 찾을 수 없습니다.")
         return -1
 
     try:
         wad_json = json.loads(match.group(1))
-    except json.JSONDecodeError as je:
-        print("[ERROR] JSON 파싱 실패:", je)
+    except json.JSONDecodeError:
+        print("[RECON] ERROR! JSON 파싱 실패")
         return -1
 
     tech_list = next(iter(wad_json.values()), [])

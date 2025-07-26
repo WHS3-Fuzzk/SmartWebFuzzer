@@ -68,7 +68,6 @@ def extract_response_body_with_check(driver, url: str) -> Optional[str]:
 
             # "whs3fuzzk" 문자열 포함 여부 확인
             if "whs3fuzzk" in decoded:
-                print("[INFO] XSS payload 'whs3fuzzk' found in response body")
                 return "detected"
             return decoded
 
@@ -82,7 +81,7 @@ class DomXss(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "Dom_XSS"
+        return "dXSS"
 
     def __init__(self):
         """
@@ -100,7 +99,7 @@ class DomXss(BaseScanner):
         메인 종료시 DOM 셀레니움 WebDriver 종료
         """
         if self.driver:
-            print("[INFO] Dom 분석 드라이버 종료 중...")
+            # print(f"[{self.vulnerability_name}] Dom 분석 드라이버 종료 중...")
             self.driver.quit()
             self.driver = None
 
@@ -139,10 +138,10 @@ class DomXss(BaseScanner):
                     "payload": payload,
                 }
 
-                print(
-                    "[+] Generated fuzzing request with payload on "
-                    f"{fuzzed_params[i]['key']}: {payload}"
-                )
+                # print(
+                #     "[+] Generated fuzzing request with payload on "
+                #     f"{fuzzed_params[i]['key']}: {payload}"
+                # )
 
                 yield original_request
 
@@ -159,8 +158,8 @@ class DomXss(BaseScanner):
             cookie_to_add = cookie.copy()
             try:
                 driver.add_cookie(cookie_to_add)
-            except (InvalidCookieDomainException, WebDriverException) as e:
-                print(f"[WARN] Failed to add cookie: {cookie_to_add} — {e}")
+            except (InvalidCookieDomainException, WebDriverException):
+                print(f"[{self.vulnerability_name}] 쿠키 추가 실패")
 
     def analyze_dom_with_selenium(
         self, url: str, cookies: List[Dict[str, str]] = None
@@ -174,7 +173,7 @@ class DomXss(BaseScanner):
         self.inject_cookies(driver, url, cookies)
 
         # ✅ 3. 실제 URL 접근
-        print(f"[INFO] Accessing target: {url}")
+        # print(f"[{self.vulnerability_name}] Accessing target: {url}")
         driver.get(url)
         # ✅ WebDriverWait으로 <html> 태그 로드 대기
         try:
@@ -182,7 +181,7 @@ class DomXss(BaseScanner):
                 EC.presence_of_element_located((By.TAG_NAME, "html"))
             )
         except TimeoutException:
-            print("[WARN] Timeout while waiting for page HTML to load")
+            print(f"[{self.vulnerability_name}] HTML 로드 중 Timeout 발생")
 
         # ✅ 3.5. 에러 페이지 감지
         has_error_div = driver.execute_script(
@@ -191,7 +190,7 @@ class DomXss(BaseScanner):
         """
         )
         if has_error_div:
-            print("[INFO] 에러 페이지 감지됨 — DOM 분석 스킵")
+            print(f"[{self.vulnerability_name}] 에러 페이지 감지됨 — DOM 분석 스킵")
             return {
                 "xss_detected": False,
                 "url": url,
@@ -201,7 +200,7 @@ class DomXss(BaseScanner):
         # ✅ 4. 응답 본문 추출 및 인코딩 자동 감지 + 압축 해제 처리
         response_check = extract_response_body_with_check(driver, url)
         if response_check == "detected":
-            print("[INFO] XSS payload 감지 — DOM 분석 생략")
+            print(f"[{self.vulnerability_name}] XSS payload 감지 — DOM 분석 생략")
             return {
                 "xss_detected": False,
                 "url": url,
@@ -244,7 +243,7 @@ class DomXss(BaseScanner):
         with self._driver_lock:
             if self.driver:
                 return
-            print("[INFO] Dom 분석 브라우저 최초 실행")
+            # print(f"[{self.vulnerability_name}] Dom 분석 브라우저 최초 실행")
             options = Options()
             options.add_argument("--headless")
             options.add_argument("--disable-gpu")
@@ -267,9 +266,8 @@ class DomXss(BaseScanner):
                 request["meta"].get("path", "/").strip("/").split("/")[:2]
             )
             base_url = f"{scheme}{domain}{base_path}/"
-            print(base_url)
             if base_url:
-                print(f"[INFO] Accessing base (driver initialized): {base_url}")
+                # print(f"[{self.vulnerability_name}] Accessing base (driver initialized)\n\t: {base_url}")
                 self.driver.get(base_url)
 
     def run(self, request_id: int, request: RequestData) -> List[Dict[str, Any]]:
@@ -280,7 +278,7 @@ class DomXss(BaseScanner):
         3. 응답 수집 후 URL 구성 및 분석
         4. XSS 결과 저장
         """
-        print(f"[{self.vulnerability_name}] 요청 ID: {request_id}")
+        # print(f"[{self.vulnerability_name}] 요청 ID: {request_id}")
         if not self.is_target(request_id, request):
             return []
         self.ensure_driver_initialized(
@@ -291,7 +289,7 @@ class DomXss(BaseScanner):
         for fuzz_request in self.generate_fuzzing_requests(request):
             # 3️⃣ URL 구성
             full_url = self._build_full_url(fuzz_request)
-            print(f"[DEBUG] Full URL for analysis: {full_url}")
+            # print(f"[DEBUG] Full URL for analysis: {full_url}")
 
             # 4️⃣ 쿠키 파싱
             cookies = self._parse_cookies(fuzz_request)
@@ -310,12 +308,12 @@ class DomXss(BaseScanner):
 
             # 7️⃣ XSS가 감지된 경우 DB 저장
             if dom_result["xss_detected"]:
-                print(f"[!] DOM-XSS 감지됨 → {full_url}")
+                # print(f"[{self.vulnerability_name}] 취약점 감지됨 → {full_url}")
                 self._handle_scan_result(
                     request_id, fuzz_request, dom_result.get("injected_context")
                 )
-            else:
-                print(f"[-] DOM-XSS 없음 → {full_url}")
+            # else:
+                # print(f"[{self.vulnerability_name}] 취약점 감지되지 않음.")
 
         return results
 
@@ -381,7 +379,7 @@ class DomXss(BaseScanner):
         insert_fuzzed_response({}, fuzzed_request_id)
 
         # 3. 취약점 결과 저장
-        result_id = insert_vulnerability_scan_result(
+        insert_vulnerability_scan_result(
             {
                 "vulnerability_name": self.vulnerability_name,
                 "original_request_id": request_id,
@@ -402,4 +400,4 @@ class DomXss(BaseScanner):
                 },
             }
         )
-        print(f"✅ DOM XSS 스캔 결과 저장 완료: {result_id}")
+        print(f"[{self.vulnerability_name}] 스캔 결과 저장 완료")

@@ -39,7 +39,7 @@ class ScannerTrigger:
         - _REGISTRY 딕셔너리를 통해 스캐너 클래스를 가져옵니다.
         """
         for name, cls in _REGISTRY.items():
-            print(f"Loaded scanner: {name} -> {cls}")
+            print(f"Loaded scanner: {name}\n                → {cls.__module__}.{cls.__name__}")
         return [cls() for cls in _REGISTRY.values()]
 
     def run(self) -> None:
@@ -65,7 +65,7 @@ class ScannerTrigger:
                         # 스캐너를 개별 쓰레드로 실행
                         for scanner in scanners:
                             print(
-                                f"Running: {scanner.vulnerability_name} on request ID: {req_id}"
+                                f"Running: {scanner.vulnerability_name:<20} on request ID: {req_id}"
                             )
                             executor.submit(scanner.run, req_id, data)
 
