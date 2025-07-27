@@ -56,6 +56,7 @@ class CommandiScanner(BaseScanner):
         # 리플렉티드 페이로드 템플릿 (중요한 것만)
         unix_payload_templates = [
             "echo CMDTEST{marker}",
+            "id",
             "whoami; echo CMDTEST{marker}",
         ]
 
