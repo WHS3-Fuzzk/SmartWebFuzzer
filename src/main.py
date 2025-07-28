@@ -95,10 +95,10 @@ def main():
         urls = [u.strip() for u in args.url.split(",") if u.strip()]
     else:
         input_urls = inquirer.text(
-            message="타겟 URL을 입력하세요.\n(예시: https://naver.com,http://testphp.vulnweb.com)\n▶",
+            message="1. 타겟 URL을 입력하세요.\n(예시: https://naver.com,http://testphp.vulnweb.com)\n▶",
             validate=lambda text: bool(text.strip())
             or "URL을 1개 이상 입력해야 합니다.",
-            qmark="",
+            qmark="●",
         ).execute()
         urls = [u.strip() for u in input_urls.split(",") if u.strip()]
 
@@ -109,16 +109,15 @@ def main():
     # --- 스캐너 선택 UI (InquirerPy) ---
     scanner_names = list(_REGISTRY.keys())
     choices = [{"name": name, "value": name, "enabled": True} for name in scanner_names]
-    print(
-        "\n활성화할 스캐너를 선택하세요 (스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료)\n"
-    )
+
+    print("\n\n")
     selected = inquirer.checkbox(
-        message="[스캐너 목록]",
+        message="2. 스캐너를 선택하세요.\n[스캐너 목록]",
         choices=choices,
         instruction="- 스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료",
         cycle=True,
         pointer="→",
-        qmark="",
+        qmark="●",
     ).execute()
     if not selected:
         print("[MAIN] ERROR! 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
