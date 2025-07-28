@@ -1,6 +1,5 @@
-# pylint: skip-file
+# pylint: disable= too-many-branches,too-many-statements
 """스마트 웹 퍼저의 시작점 모듈
-
 동작 순서:
 1. 인프라 실행 (docker-compose up)
 2. DB 초기화
@@ -24,13 +23,26 @@ from scanner_trigger import ScannerTrigger
 from fuzzing_scheduler.fuzzing_scheduler import start_celery_workers, set_rps
 from scanners import _REGISTRY
 
+# ASCII 아트 상수
+ASCII_ART = """
+╔───────────────────────────────────────────────────╗
+│                                                   │
+│     ███████╗██╗   ██╗███████╗███████╗██╗  ██╗     │
+│     ██╔════╝██║   ██║╚══███╔╝╚══███╔╝██║ ██╔╝     │
+│     █████╗  ██║   ██║  ███╔╝   ███╔╝ █████╔╝      │
+│     ██╔══╝  ██║   ██║ ███╔╝   ███╔╝  ██╔═██╗      │
+│     ██║     ╚██████╔╝███████╗███████╗██║  ██╗     │
+│     ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝     │
+│                                                   │
+╚───────────────────────────────────────────────────╝
+"""
+
 
 def parse_arguments():
     """명령줄 인자를 파싱합니다."""
     parser = argparse.ArgumentParser(
-        description="Fuzzk SmartWebFuzzer - 웹 취약점 스캐너",
+        description=f"{ASCII_ART}\n\nFuzzk SmartWebFuzzer - 웹 취약점 스캐너",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False,  # 기본 help를 비활성화
     )
 
     parser.add_argument(
@@ -69,8 +81,6 @@ def parse_arguments():
         metavar="NUM",
     )
 
-    parser.add_argument("-h", "--help", action="store_true", help="이 도움말 표시")
-
     return parser.parse_args()
 
 
@@ -78,22 +88,17 @@ def main():
     """스마트 웹 퍼저 메인 함수"""
     args = parse_arguments()
 
-    # help 옵션 처리
-    if args.help:
-        ascii_art(show_manual=True)
-        return
-
-    ascii_art()  # 일반 실행 시 ASCII 아트만 표시
+    print(ASCII_ART)  # 일반 실행 시 ASCII 아트만 표시
 
     # URL 처리
     if args.url:
         urls = [u.strip() for u in args.url.split(",") if u.strip()]
     else:
         input_urls = inquirer.text(
-            message="타겟 URL을 쉼표로 구분해서 입력하세요 (예: https://naver.com,http://testphp.vulnweb.com):",
+            message="타겟 URL을 입력하세요.\n(예시: https://naver.com,http://testphp.vulnweb.com)\n▶",
             validate=lambda text: bool(text.strip())
             or "URL을 1개 이상 입력해야 합니다.",
-            qmark="▶",
+            qmark="",
         ).execute()
         urls = [u.strip() for u in input_urls.split(",") if u.strip()]
 
@@ -108,12 +113,12 @@ def main():
         "\n활성화할 스캐너를 선택하세요 (스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료)\n"
     )
     selected = inquirer.checkbox(
-        message="스캐너 목록:",
+        message="[스캐너 목록]",
         choices=choices,
-        instruction="스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료",
+        instruction="- 스페이스: 선택/해제, ↑/↓: 이동, 엔터: 완료",
         cycle=True,
         pointer="→",
-        qmark="▶",
+        qmark="",
     ).execute()
     if not selected:
         print("[MAIN] ERROR! 스캐너를 1개 이상 선택해야 합니다. 종료합니다.")
@@ -179,7 +184,7 @@ def main():
         input("[MAIN] 아무 키나 누르면 종료됩니다...")
 
     except (OSError, KeyboardInterrupt):
-        print(f"[MAIN] ERROR! 메인 프로세스 중 오류 발생")
+        print("[MAIN] ERROR! 메인 프로세스 중 오류 발생")
 
     finally:
         # DB 백업
@@ -197,118 +202,15 @@ def main():
             try:
                 driver.quit()
             except WebDriverException:
-                print(f"[MAIN] ERROR! 브라우저 종료 중 오류")
+                print("[MAIN] ERROR! 브라우저 종료 중 오류")
 
         try:
             mitmproxy_process.terminate()
             mitmproxy_process.wait()
         except (subprocess.SubprocessError, OSError):
-            print(f"[MAIN] ERROR! mitmproxy 종료 중 오류")
+            print("[MAIN] ERROR! mitmproxy 종료 중 오류")
 
         print("[MAIN] 종료 완료")
-
-
-def ascii_art(show_manual=False):
-    # pylint: disable=line-too-long
-    """아스키 아트 출력 (선택적으로 매뉴얼 포함)"""
-    art_lines = [
-        "                                                 ▓▓█▓                                                ",
-        "                                               ▓▓████▓█                                              ",
-        "                                             ▓███▒▒▒▒███▓                                            ",
-        "                                        █▓▓███▓▒▓▓▓▓▓▓▒▓███▓▓█                                       ",
-        "                          ▓███▓▓▓▓▓▓██████▓▒▒▓█▓▓████▓▓█▓▒▒▓██████▓▓▓▓▓▓████                         ",
-        "                          ██▒░░░░░░░░░░▒▓███▓▓████▓▓████▓▓███▓▒░░░░░░░░░░▒█▓                         ",
-        "                          ██▒▓▓▓▓▓▓▓▓▓▓▓▓█████▓▓▓▒▒▒▒▒▓▓█████▓▓▓▓▓▓▓▓▓▓▓█▒█▓                         ",
-        "                          ██▒▓▓███████████▓▓▓▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓██████████▓█▒█▓                         ",
-        "                          ██▒▓▓██▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░ ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓██▓█▒█▓                         ",
-        "                          ██▒▓▓██▓▒▒░░░░░░▒▒░▒▒▓ ▓██▓░▓▒▒▒▒▒░░░░░▒▒▒▓██▓█▒█▓                         ",
-        "                          ██▒▓▓██▓▒▒░▒▒▒▒▒▒▒▒▓█        █▒▒░░░░▒░▒░░▒▓██▓█▒█▓                         ",
-        "                          ▓█▒▓▓██▓▒▒▒░░▒▒▒▒▒▓▓█  ░██░  █▒▒▒▒▒▒░░░▒▒▒▓██▓█▒█▓                         ",
-        "             ███████████████▒▓▓██▓▓▒▒▒▓▒▒▒░▒▓▓█   ▒▓   █▒▒▒▒▒▒▒▒▒▒░▒▓██▓█▒███▓                       ",
-        "             ██▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▒▒▒▒▒▒▒▒▒▓▓█   ▒▒   █▓▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓█▓                       ",
-        "             ██▓▓█▒          ░█▓█▓▓▓▒▒▒▒▒▒▒▒▓▓██████████▓▒▒▓▒▒▒▒▒▒▓▓█▓   ▓▓██████████████            ",
-        "             ██▓▓█▒          ░█▓█▓▓▓▓▓▓▓▓▒▓▓▓▓█████████▓▓▓▓▓▓▓▓▓▓▓▓▓█▒   ▓▓▓▓▓▓▓▓▓▓▓████             ",
-        "             ██▓▓█▒   ▓█████████████▓▓████████▓▓▓▓▓▓▓▓▓███▓▓▓▓▓▓▓▓▓██▒   ▓█████▓███▓███              ",
-        "             ██▓▓█▒   ▓████████▓   ████▒   ██▓         ▓█▓         ▒█▓   ▓██   ▒██▓███               ",
-        "             ██▓▓█▒   ▓▓▓▓▓▓███▓   ████▒   ███████▓   ▓███████▓   ▒██▓   ▓▒   ▒█▓▓███                ",
-        "             ██▓▓█▒         ▒██▓   ████▒   ███▓██▒   ▓█▓▓▓▓██▓   ▓███▓       ▓█▓████                 ",
-        "             ██▓▓█▒   ▒▓▓▓▓▓███▓   ████▒   █▓▓██░   ██▓███▓█▒   ▓█▓▓█▒       ██▓███                  ",
-        "             ██▓▓█▒   ▓████████▓   ████▒   ████░  ░██▓▓█▓██░   ██▓▓▓█▒   ░░   ▓█▓███                 ",
-        "             ▓█▓▓█▒   ▓████████▓   ▓███    ███   ▒████████   ░███████▒   ▓█▒   ▓█▓███                ",
-        "             ██▓▓█▒   ▓███▓█▓▓██▒          ██           █░          █▒   ▓██▓   ▓█▓███               ",
-        "             ██▓▓█████████▓█▓▓▓███▓▓▒▓███▓████▓▓▓▓▓▓▓▓▓███▓▓▓▓▓▓▓▓▓████████████████▓███              ",
-        "            █▓█▓▓█████▓▓██▓█▓█████████████████████████████████████████████▓▓██████▓▓▓███             ",
-        "            ██████████████▒█▓█▓██████▓▓▓▓▓▓▓▓▓▓▓▓▓█▓▓▓▓█▓▓█▓▓▓█▓▓██████▓█▓███████████████            ",
-        "                          ▓█▓▒█▓████▓▓▓▒▒▒▓▓▒▓▒▒▓▒▓▒▒▒▒▓▓▓▒▒▒▓▓▒▓▓████▓█▒▓█▓                         ",
-        "                           ▓██▒▒█▓████▓▓▒▒▒▓▒▒▒▒▒▒▓▒▒▒▒▓▒▓▒▒▒▓▒▓▓███▓█▓▒██▓                          ",
-        "                            ▓▓██▒▓█▓████▓▓▒▓▒▒▒▒▒▓▓▒▒▒▒▓▒▓▓▓▓▓████▓█▓▒██▓▒                           ",
-        "                              ▓███▒▓█▓████▓▓▓▓▓▓▓▒▓▒▒▓▒▓▓▓▓▓████▓█▓▒██▓▓                             ",
-        "                                ████▒▓█▓████▓▓▓▒▒▒▓▓▒▓▒▒▓▓████▓█▓▒███▓                               ",
-        "                                  ▓███▓▒██▓████▓▓▒▓▓▓▓▓████▓██▒▓████                                 ",
-        "                                     ███▓░▓█▓█████▓▓█████▓█▓░▓██▓                                    ",
-        "                                       ▓███▒▒██▓██████▓██▒▒███▓                                      ",
-        "                                          ████▒▓██████▓▒█████                                        ",
-        "                                            ▓███▓▒▓▓▒▓███▓                                           ",
-        "                                              ████████                                              ",
-        "                                                 ██                                                 ",
-    ]
-
-    if not show_manual:
-        # ASCII 아트만 출력
-        for art_line in art_lines:
-            print(art_line)
-        print()  # 마지막에 빈 줄 추가
-        return
-
-    # ASCII 아트와 매뉴얼을 함께 출력
-    manual_lines = [
-        "",
-        "Fuzzk SmartWebFuzzer - 웹 취약점 스캐너",
-        "",
-        "사용법:",
-        "  python main.py [옵션]",
-        "",
-        "타겟 설정:",
-        "  -url URL          타겟 URL (쉼표로 구분하여 여러 개 지정)",
-        "",
-        "성능 옵션:",
-        "  -w, --workers NUM 퍼징 요청 워커 수 (기본값: 4)",
-        "  -t, --threads NUM 스레드 수 (기본값: 8)",
-        "  -rps, --rate-limit NUM 초당 요청 수 제한 (RPS, 기본값: 제한 없음)",
-        "",
-        "기타 옵션:",
-        "  -v, --verbose     상세한 로그 출력",
-        "  -h, --help        이 도움말 표시",
-        "",
-        "취약점 스캔 모듈:",
-    ]
-    # 동적으로 스캐너 이름 추가
-    for name in _REGISTRY:
-        manual_lines.append(f"  - {name}")
-    manual_lines.extend(
-        [
-            "",
-            "사용 예시:",
-            "  python main.py -url https://example.com",
-            "  python main.py --workers 6 --threads 12",
-            "  python main.py --rate-limit 10",
-        ]
-    )
-
-    # 두 리스트의 최대 길이 계산
-    max_lines = max(len(art_lines), len(manual_lines))
-
-    # 빈 라인으로 패딩
-    while len(art_lines) < max_lines:
-        art_lines.append(" " * 100)  # ASCII 아트 너비만큼 공백
-    while len(manual_lines) < max_lines:
-        manual_lines.append("")
-
-    # 나란히 출력
-    for art_line, manual_line in zip(art_lines, manual_lines):
-        print(f"{art_line}  {manual_line}")
-
-    print()  # 마지막에 빈 줄 추가
 
 
 if __name__ == "__main__":
