@@ -6,13 +6,16 @@ html, body {
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
     padding: 1px;
     background-color: #f5f7fa;
     color: #333;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h2 {
@@ -157,7 +160,7 @@ textarea {
     flex: 1;
     resize: none;
     padding: 12px;
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.4;
     overflow-y: auto;
@@ -165,6 +168,9 @@ textarea {
     border-radius: 8px;
     background-color: #fafbfc;
     transition: border-color 0.3s ease;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 textarea:focus {
@@ -276,7 +282,7 @@ textarea:focus {
 #analysis-result {
     min-height: 200px;
     flex: 2;
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.5;
     position: relative;
@@ -288,12 +294,15 @@ textarea:focus {
     white-space: pre-wrap;
     word-wrap: break-word;
     transition: border-color 0.3s ease;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .analysis-container {
     min-height: 200px;
     flex: 2;
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.5;
     position: relative;
@@ -305,11 +314,14 @@ textarea:focus {
     white-space: pre-wrap;
     word-wrap: break-word;
     transition: border-color 0.3s ease;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* JSON syntax highlighting 스타일 */
 .json-highlight {
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.5;
     background-color: #f8f9fa;
@@ -321,34 +333,12 @@ textarea:focus {
     white-space: pre-wrap;
     word-wrap: break-word;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-.json-highlight .token.property {
-    color: #0066cc;
-    font-weight: 600;
-}
 
-.json-highlight .token.string {
-    color: #28a745;
-}
-
-.json-highlight .token.number {
-    color: #fd7e14;
-}
-
-.json-highlight .token.boolean {
-    color: #6f42c1;
-    font-weight: 600;
-}
-
-.json-highlight .token.null {
-    color: #6c757d;
-    font-style: italic;
-}
-
-.json-highlight .token.punctuation {
-    color: #495057;
-}
 
 /* Prism.js 기본 스타일 오버라이드 */
 .json-highlight code {
@@ -357,6 +347,35 @@ textarea:focus {
     border-radius: 0 !important;
     font-size: inherit !important;
     font-family: inherit !important;
+    color: inherit !important;
+}
+
+/* Prism.js 토큰 색상 커스터마이징 */
+.json-highlight .token.property {
+    color: #0066cc !important;
+    font-weight: 600 !important;
+}
+
+.json-highlight .token.string {
+    color: #28a745 !important;
+}
+
+.json-highlight .token.number {
+    color: #fd7e14 !important;
+}
+
+.json-highlight .token.boolean {
+    color: #6f42c1 !important;
+    font-weight: 600 !important;
+}
+
+.json-highlight .token.null {
+    color: #6c757d !important;
+    font-style: italic !important;
+}
+
+.json-highlight .token.punctuation {
+    color: #495057 !important;
 }
 
 /* 분석 결과 내 JSON 블록 스타일 */
@@ -404,7 +423,7 @@ textarea:focus {
 
 /* Diff 하이라이팅 스타일 */
 .diff-container {
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.4;
     background-color: #fafbfc;
@@ -417,6 +436,9 @@ textarea:focus {
     white-space: pre-wrap;
     word-wrap: break-word;
     transition: border-color 0.3s ease;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .diff-added {
@@ -466,7 +488,7 @@ textarea:focus {
 
 /* 원본 텍스트 컨테이너 */
 .original-container {
-    font-family: 'Fira Code', 'Consolas', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     line-height: 1.4;
     background-color: #fafbfc;
@@ -479,11 +501,17 @@ textarea:focus {
     white-space: pre-wrap;
     word-wrap: break-word;
     transition: border-color 0.3s ease;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* 취약점 분석 결과 스타일 */
 .vulnerability-analysis {
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .vulnerability-card {
@@ -571,9 +599,12 @@ textarea:focus {
     border-radius: 6px;
     font-weight: 600;
     font-size: 12px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     border: 1px solid #c8e6c9;
     display: inline-block;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .method-badge {
@@ -602,13 +633,16 @@ textarea:focus {
     color: #d32f2f;
     padding: 8px 12px;
     border-radius: 6px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 12px;
     border: 1px solid #e0e0e0;
     display: block;
     white-space: pre-wrap;
     word-break: break-all;
     line-height: 1.4;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .extra-info {
@@ -629,13 +663,16 @@ textarea:focus {
     color: #495057;
     padding: 10px;
     border-radius: 4px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-family: 'JetBrains Mono', 'Source Code Pro', 'SF Mono', Monaco, 'Fira Code', 'Consolas', 'Liberation Mono', monospace;
     font-size: 11px;
     line-height: 1.4;
     overflow-x: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
     border: 1px solid #e9ecef;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* 반응형 디자인 */

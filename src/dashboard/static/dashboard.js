@@ -839,7 +839,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
                 if (vuln.extra) {
                     resultHTML += `<div class="extra-info">`;
                     resultHTML += `<h4>추가 정보</h4>`;
-                    resultHTML += `<pre class="json-code">${escapeHtml(JSON.stringify(vuln.extra, null, 2))}</pre>`;
+                    resultHTML += `<pre class="json-highlight"><code class="language-json">${escapeHtml(JSON.stringify(vuln.extra, null, 2))}</code></pre>`;
                     resultHTML += `</div>`;
                 }
                 
@@ -851,13 +851,12 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             // HTML로 직접 설정
             analysisResult.innerHTML = resultHTML;
             
-            // JSON 하이라이팅 적용
+            
+            // Prism.js 하이라이팅 적용
             setTimeout(() => {
-                const jsonElements = analysisResult.querySelectorAll('.json-code');
-                jsonElements.forEach(element => {
-                    if (element.textContent.trim()) {
-                        element.innerHTML = Prism.highlight(element.textContent, Prism.languages.json, 'json');
-                    }
+                const codeElements = analysisResult.querySelectorAll('code.language-json');
+                codeElements.forEach(code => {
+                    Prism.highlightElement(code);
                 });
             }, 100);
         } else {
