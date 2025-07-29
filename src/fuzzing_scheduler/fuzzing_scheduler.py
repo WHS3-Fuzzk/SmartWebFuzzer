@@ -48,6 +48,7 @@ celery_app = Celery(
         "scanners.file_download",  # File Download 스캐너
         "scanners.command_injection",  # Command Injection 스캐너
         "scanners.sqli",  # Sql Injection 스캐너
+        "scanners.file_upload",  # File Upload 스캐너
     ],
 )
 # celery_app.autodiscover_tasks(["scanners"])
