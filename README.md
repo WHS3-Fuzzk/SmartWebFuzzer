@@ -83,10 +83,20 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
    **Python 버전**: 3.12.0
 
    ```sh
-   python src/main.py [-h] [-url URL] [-w NUM] [-t NUM] [-v] [-rps NUM]
+   python src/main.py [-h] [-url URL] [-w NUM] [-t NUM] [-rps NUM]
    ```
 
-6. **대시보드 확인**
+
+   | 옵션         | 전체 이름              | 설명                           |
+   | ---------- | ------------------ | ---------------------------- |
+   | `-h`       | `--help`           | 도움말 메시지를 출력하고 종료합니다          |
+   | `-url URL` | `--url URL`        | 타겟 URL (쉼표로 구분하여 여러 개 지정 가능) |
+   | `-w NUM`   | `--workers NUM`    | 퍼징 요청을 보내는 워커 수 (기본값: 4)     |
+   | `-t NUM`   | `--threads NUM`    | 스레드 수 (기본값: 8)               |
+   | `-rps NUM` | `--rate-limit NUM` | 초당 요청 수 제한 (RPS, 기본값: 제한 없음) |
+
+
+6. **메인보드 확인**
 
    ```text
    127.0.0.1:5000
