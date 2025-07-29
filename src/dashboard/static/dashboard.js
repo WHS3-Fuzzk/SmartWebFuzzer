@@ -586,9 +586,14 @@ async function loadRequestDetail(requestId) {
 
             if (filteredData.length === 0) {
                 fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 필터 조건에 맞는 퍼징 요청이 없습니다.</p>";
-                            document.getElementById("fuzz-body").value = "";
-            document.getElementById("fuzz-response").value = "";
-            document.getElementById("analysis-result").innerHTML = "";
+                
+                // 빈 값으로 초기화 및 화면 갱신
+                window.fuzzRequestText = "";
+                window.fuzzResponseText = "";
+                if (document.getElementById("analysis-result"))
+                    document.getElementById("analysis-result").innerHTML = "";
+                
+                updateFuzzDisplay();
                 updateEmptyPlaceholder();
                 return;
             }
@@ -660,9 +665,14 @@ async function loadRequestDetail(requestId) {
         } else {
             fuzzTitleDiv.textContent = "📨 퍼징 요청 목록";
             fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징 대상이 아닙니다.</p>";
-            document.getElementById("fuzz-body").value = "";
-            document.getElementById("fuzz-response").value = "";
-            document.getElementById("analysis-result").innerHTML = "";
+            
+            // 빈 값으로 초기화 및 화면 갱신
+            window.fuzzRequestText = "";
+            window.fuzzResponseText = "";
+            if (document.getElementById("analysis-result"))
+                document.getElementById("analysis-result").innerHTML = "";
+            
+            updateFuzzDisplay();
             updateEmptyPlaceholder();
         }
     } catch (err) {
@@ -670,6 +680,7 @@ async function loadRequestDetail(requestId) {
         clearAll();
     }
 }
+
 
 async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
     // 로딩 상태 표시
@@ -1216,27 +1227,30 @@ function updateFuzzDisplay() {
     const responseContainer = document.getElementById("fuzz-response-container");
     
     // 퍼징 요청 표시
-    if (window.fuzzRequestText) {
+    if (window.fuzzRequestText !== undefined && window.fuzzRequestText !== null) {
         if (requestDiffToggle.classList.contains('active') && window.originalRequestText) {
             requestContainer.innerHTML = advancedDiff(window.originalRequestText, window.fuzzRequestText);
         } else {
-            requestContainer.textContent = window.fuzzRequestText;
+            // 빈 문자열일 경우도 처리
+            requestContainer.textContent = window.fuzzRequestText || "";
         }
     } else {
-        requestContainer.textContent = "🔍 퍼징 요청을 선택하면\n요청 전체가 표시됩니다";
+        requestContainer.textContent = "";
     }
     
     // 퍼징 응답 표시
-    if (window.fuzzResponseText) {
+    if (window.fuzzResponseText !== undefined && window.fuzzResponseText !== null) {
         if (responseDiffToggle.classList.contains('active') && window.originalResponseText) {
             responseContainer.innerHTML = advancedDiff(window.originalResponseText, window.fuzzResponseText);
         } else {
-            responseContainer.textContent = window.fuzzResponseText;
+            // 빈 문자열일 경우도 처리
+            responseContainer.textContent = window.fuzzResponseText || "";
         }
     } else {
-        responseContainer.textContent = "📥 퍼징 요청을 선택하면\n응답 전체가 표시됩니다";
+        responseContainer.textContent = "";
     }
 }
+
 
 // JSON syntax highlighting 관련 함수들
 function isJSONString(str) {
