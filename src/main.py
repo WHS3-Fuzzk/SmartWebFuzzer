@@ -71,7 +71,6 @@ def parse_arguments():
         metavar="NUM",
     )
 
-    parser.add_argument("-v", "--verbose", action="store_true", help="상세한 로그 출력")
     parser.add_argument(
         "-rps",
         "--rate-limit",
@@ -135,9 +134,6 @@ def main():
     # 워커 및 성능 설정
     print(f"[MAIN] 퍼징 요청 워커 수: {args.workers}")
     print(f"[MAIN] 스레드 수: {args.threads}")
-
-    if args.verbose:
-        print("[MAIN] 상세 로그 모드 활성화")
 
     domains = [urllib.parse.urlparse(url).netloc for url in urls]
     os.environ["TARGET_DOMAINS"] = ",".join(domains)

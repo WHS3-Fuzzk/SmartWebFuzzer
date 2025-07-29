@@ -75,15 +75,6 @@ def is_excluded_url(url: str) -> bool:
     return any(re.search(pattern, url) for pattern in EXCLUDED_PATTERNS)
 
 
-def build_view_filter(domains: list) -> str:
-    """
-    도메인 리스트와 제외 패턴으로 mitmproxy view-filter 문자열 생성
-    """
-    excluded_filter = " & ".join([f'!~u "{pattern}"' for pattern in EXCLUDED_PATTERNS])
-    filters = [f"(~d {domain} & {excluded_filter})" for domain in domains]
-    return " | ".join(filters)
-
-
 def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
     """
     요청 또는 응답이 중복인지 판단
