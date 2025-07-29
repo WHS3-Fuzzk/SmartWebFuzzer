@@ -42,7 +42,7 @@ class FileDownloadScanner(BaseScanner):
         """
         취약점 이름 반환 (대시보드 기록용)
         """
-        return "FD"
+        return "File Donwload"
 
     def is_target(self, _request_id: int, request: RequestData) -> bool:
         """

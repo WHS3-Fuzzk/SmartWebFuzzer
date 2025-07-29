@@ -41,7 +41,7 @@ class SqliScanner(BaseScanner):
     @property
     def vulnerability_name(self) -> str:
         """탐지 대상 취약점 이름을 반환합니다."""
-        return "SQLi"
+        return "SQL Injection"
 
     def __init__(self):
         """SQLiScanner 인스턴스를 초기화하며, 페이로드와 임계값을 설정합니다."""

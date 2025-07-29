@@ -81,7 +81,7 @@ class DomXss(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "dXSS"
+        return "Dom based XSS"
 
     def __init__(self):
         """

@@ -45,7 +45,7 @@ class StoredXSS(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "sXSS"
+        return "Stored XSS"
 
     def __init__(self):
         """

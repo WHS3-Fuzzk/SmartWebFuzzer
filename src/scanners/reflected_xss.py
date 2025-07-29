@@ -170,7 +170,7 @@ class ReflectedXss(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "rXSS"
+        return "Reflected XSS"
 
     def __init__(self):
         # base_dir = os.path.dirname(os.path.abspath(__file__))  # src/scanners 폴더 경로

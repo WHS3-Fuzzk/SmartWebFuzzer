@@ -26,7 +26,7 @@ from fuzzing_scheduler.fuzzing_scheduler import send_fuzz_request
 class CommandiScanner(BaseScanner):
     @property
     def vulnerability_name(self) -> str:
-        return "CMDi"
+        return "Command Injection"
 
     def is_target(self, request_id: int, request: RequestData) -> bool:
         method = request["meta"]["method"]
