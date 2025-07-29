@@ -25,7 +25,13 @@ from typedefs import RequestData, Body
 
 DB_ERRORS: Dict[str, List[str]] = {
     "MySQL": ["You have an error in your SQL syntax", "Warning: mysql_"],
-    "PostgreSQL": ["pg_query()", "pg_exec()", "PostgreSQL"],
+    "PostgreSQL": [
+        "syntax error at or near",
+        "unterminated quoted",
+        "pg_query()",
+        "pg_exec()",
+        "PostgreSQL",
+    ],
     "MSSQL": [
         "Unclosed quotation mark after the character string",
         "Microsoft OLE DB Provider for SQL Server",
