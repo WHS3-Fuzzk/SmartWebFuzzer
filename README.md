@@ -51,6 +51,26 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 <img src="https://github.com/yewon-Noh/readme-template/blob/main/skills/Discord.png?raw=true" width="80">
 </div>
 
+## 📜 MITM 인증서 설치 방법
+
+1. **mitmproxy 실행**
+
+   ```bash
+   mitmproxy
+   ```
+
+2. **브라우저에서 mitmproxy 인증서 페이지 접속**
+
+   - 주소: [http://mitm.it](http://mitm.it)
+   - PC에서 mitmproxy를 통해 접속하면 자동으로 페이지가 열립니다.
+
+3. **운영체제에 맞는 인증서 다운로드**
+
+   - Windows, macOS
+
+4. **신뢰할 수 있는 루트 인증기관으로 인증서 설치**
+   - **PC**: OS의 인증서 관리자에서 "신뢰할 수 있는 루트 인증기관" 항목에 추가
+
 ## 프로젝트 실행 방법
 
 1. **프로젝트 클론**
@@ -86,15 +106,13 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
    python src/main.py [-h] [-url URL] [-w NUM] [-t NUM] [-rps NUM]
    ```
 
-
-   | 옵션         | 전체 이름              | 설명                           |
-   | ---------- | ------------------ | ---------------------------- |
+   | 옵션       | 전체 이름          | 설명                                         |
+   | ---------- | ------------------ | -------------------------------------------- |
    | `-h`       | `--help`           | 도움말 메시지를 출력하고 종료합니다          |
    | `-url URL` | `--url URL`        | 타겟 URL (쉼표로 구분하여 여러 개 지정 가능) |
-   | `-w NUM`   | `--workers NUM`    | 퍼징 요청을 보내는 워커 수 (기본값: 4)     |
-   | `-t NUM`   | `--threads NUM`    | 스레드 수 (기본값: 8)               |
-   | `-rps NUM` | `--rate-limit NUM` | 초당 요청 수 제한 (RPS, 기본값: 제한 없음) |
-
+   | `-w NUM`   | `--workers NUM`    | 퍼징 요청을 보내는 워커 수 (기본값: 4)       |
+   | `-t NUM`   | `--threads NUM`    | 스레드 수 (기본값: 8)                        |
+   | `-rps NUM` | `--rate-limit NUM` | 초당 요청 수 제한 (RPS, 기본값: 제한 없음)   |
 
 6. **메인보드 확인**
 
@@ -106,7 +124,7 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 
 |                                        퍼저 메인 #1                                        |
 | :----------------------------------------------------------------------------------------: |
-| ![Image1](https://github.com/user-attachments/assets/3b7259e5-da20-4ed9-b50e-c9af79604b14) |
+| ![Image1](https://github.com/user-attachments/assets/5723f28b-de97-43ea-b30b-6f08257091e6) |
 
 |                                      퍼저 대시보드 #2                                      |
 | :----------------------------------------------------------------------------------------: |
