@@ -100,7 +100,7 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 
 |                                      퍼저 대시보드 #2                                      |
 | :----------------------------------------------------------------------------------------: |
-| ![Image2](https://github.com/user-attachments/assets/c4287020-df98-40b5-a3f6-8de29df90330) |
+| ![Image2](https://github.com/user-attachments/assets/0dfcd073-fe2e-4af5-b1d9-95eaa99280fb) |
 
 <br/>
 
