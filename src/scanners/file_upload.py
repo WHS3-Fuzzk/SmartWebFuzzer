@@ -44,7 +44,7 @@ def analyze_file_upload_response(response: Dict[str, Any]) -> Dict[str, Any]:
 
     # 에러 패턴 확인 (200이어도 실제로는 실패일 수 있음)
     error_patterns = [
-        r"error",
+        r"(?<!\.)error(?!\s*\{|\s*:)",  # .error 클래스나 error: 속성 제외
         r"failed",
         r"invalid",
         r"not allowed",
