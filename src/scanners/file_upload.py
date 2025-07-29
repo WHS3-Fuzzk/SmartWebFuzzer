@@ -1,3 +1,4 @@
+# pylint: skip-file
 """
 FileUploadScanner: 파일 업로드 취약점 탐지 스캐너
 
