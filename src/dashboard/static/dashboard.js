@@ -462,7 +462,7 @@ async function loadRequestDetail(requestId) {
                 ? '?' + Object.entries(req.query_params).map(([k, v]) => `${k}=${v}`).join('&')
                 : '';
             
-            requestText += `${req.method || 'GET'} ${req.path || '/'}${queryString} ${req.http_version || '1.1'}\n`;
+            requestText += `${req.method || ''} ${req.path || '/'}${queryString} ${req.http_version || ''}\n`;
             
             // Host 헤더 추가 (일반적으로 필수)
             if (req.domain) {
@@ -511,7 +511,7 @@ async function loadRequestDetail(requestId) {
             const resp = data.response;
             
             // 응답 라인 구성
-            responseText += `${resp.http_version || '1.1'} ${resp.status_code || '200'}\n`;
+            responseText += `${resp.http_version || ''} ${resp.status_code || ''}\n`;
             
             // 헤더 추가 (중복 방지를 위해 필터링)
             const processedHeaders = new Set();
@@ -703,7 +703,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             : '';
         
         // 요청 라인 구성
-        fuzzRequestText += `${fuzz.method || 'GET'} ${fuzz.fuzz_request_path || '/'}${queryString} ${fuzz.fuzz_request_http_version || '1.1'}\n`;
+        fuzzRequestText += `${fuzz.method || ''} ${fuzz.fuzz_request_path || '/'}${queryString || ''} ${fuzz.fuzz_request_http_version || ''}\n`;
         
         // Host 헤더 추가
         if (fuzz.fuzz_request_domain) {
@@ -749,7 +749,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
         let fuzzResponseText = "";
         
         // 응답 라인 구성
-        fuzzResponseText += `${fuzz.fuzz_response_http_version || '1.1'} ${fuzz.fuzz_response_status_code || '200'}\n`;
+        fuzzResponseText += `${fuzz.fuzz_response_http_version || ''} ${fuzz.fuzz_response_status_code || ''}\n`;
         
         // 헤더 추가 (중복 방지)
         const processedResponseHeaders = new Set();
@@ -763,26 +763,26 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             }
         });
         
-        // 응답 메타데이터 추가 (헤더에 없는 경우만)
-        if (fuzz.fuzz_response_content_type && !processedResponseHeaders.has('content-type')) {
-            fuzzResponseText += `Content-Type: ${fuzz.fuzz_response_content_type}`;
-            if (fuzz.fuzz_response_charset) {
-                fuzzResponseText += `; charset=${fuzz.fuzz_response_charset}`;
-            }
-            fuzzResponseText += '\n';
-        }
-        if (fuzz.fuzz_response_content_length && !processedResponseHeaders.has('content-length')) {
-            fuzzResponseText += `Content-Length: ${fuzz.fuzz_response_content_length}\n`;
-        }
-        if (fuzz.fuzz_response_content_encoding && !processedResponseHeaders.has('content-encoding')) {
-            fuzzResponseText += `Content-Encoding: ${fuzz.fuzz_response_content_encoding}\n`;
-        }
-        
-        // 빈 줄 추가 (헤더와 바디 구분)
-        fuzzResponseText += '\n';
-        
-        // 응답 바디 추가
+        // 응답 바디가 있을 때만 헤더 메타데이터 추가
         if (fuzz.response_body) {
+            if (fuzz.fuzz_response_content_type && !processedResponseHeaders.has('content-type')) {
+                fuzzResponseText += `Content-Type: ${fuzz.fuzz_response_content_type}`;
+                if (fuzz.fuzz_response_charset) {
+                    fuzzResponseText += `; charset=${fuzz.fuzz_response_charset}`;
+                }
+                fuzzResponseText += '\n';
+            }
+            if (fuzz.fuzz_response_content_length && !processedResponseHeaders.has('content-length')) {
+                fuzzResponseText += `Content-Length: ${fuzz.fuzz_response_content_length}\n`;
+            }
+            if (fuzz.fuzz_response_content_encoding && !processedResponseHeaders.has('content-encoding')) {
+                fuzzResponseText += `Content-Encoding: ${fuzz.fuzz_response_content_encoding}\n`;
+            }
+            
+            // 빈 줄 추가 (헤더와 바디 구분)
+            fuzzResponseText += '\n';
+            
+            // 응답 바디 추가
             fuzzResponseText += fuzz.response_body;
         }
         
