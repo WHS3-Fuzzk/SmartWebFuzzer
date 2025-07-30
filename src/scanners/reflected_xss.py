@@ -109,7 +109,7 @@ def check_payload_in_attributes(html_text, payload):
     if custom_tags:
         results += inspect_custom_tag_attributes(soup, markers, payload)
     else:
-        print("[rXSS] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
+        print("[Reflected XSS] <whs3fuzzk> 태그는 생성되지 않음. 속성 검사 생략됨.")
 
     return results
 
@@ -380,8 +380,8 @@ def analyze_response_reflected_xss(response: dict) -> dict:
             "script_check": script_results,
         }
 
-        # print(f"[rXSS] 취약점 발견! URL: {vulnerability['url']}")
+        # print(f"[Reflected XSS] 취약점 발견! URL: {vulnerability['url']}")
         return vulnerability
 
-    print("[rXSS] 페이로드가 응답에 없음")
+    print("[Reflected XSS] 페이로드가 응답에 없음")
     return vulnerability
