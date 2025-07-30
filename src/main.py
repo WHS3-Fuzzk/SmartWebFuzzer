@@ -94,7 +94,7 @@ def main():
         urls = [u.strip() for u in args.url.split(",") if u.strip()]
     else:
         input_urls = inquirer.text(
-            message="1. 타겟 URL을 입력하세요.\n(예시: https://naver.com,http://testphp.vulnweb.com)\n▶",
+            message="1. 타겟 URL을 입력하세요.\n(예시: https://example.com,http://testphp.vulnweb.com)\n▶",
             validate=lambda text: bool(text.strip())
             or "URL을 1개 이상 입력해야 합니다.",
             qmark="●",
