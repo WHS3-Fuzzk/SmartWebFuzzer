@@ -9,6 +9,18 @@ from psycopg2.extras import execute_values
 from db_config import DB_NAME, USER, PASSWORD, HOST, PORT
 
 
+def sanitize_body(body_data):
+    """
+    body 데이터에서 null 문자(0x00)를 치환하여 PostgreSQL 저장 오류를 방지
+    #TODO: bytes로 저장하는 방식으로 변경 필요
+    """
+    if body_data is None:
+        return None
+    if isinstance(body_data, str):
+        return body_data.replace("\x00", "[NULL]")
+    return body_data
+
+
 def insert_filtered_request(request: dict) -> int:
     """
     필터링된 요청 데이터를 DB에 저장하고 생성된 ID 반환
@@ -85,7 +97,7 @@ def insert_filtered_request(request: dict) -> int:
                     body.get("charset"),
                     body.get("content_length"),
                     body.get("content_encoding"),
-                    body.get("body"),
+                    sanitize_body(body.get("body")),
                 ),
             )
 
@@ -158,7 +170,7 @@ def insert_filtered_response(response: dict, request_id: int) -> int:
                     body.get("charset"),
                     body.get("content_length"),
                     body.get("content_encoding"),
-                    body.get("body"),
+                    sanitize_body(body.get("body")),
                 ),
             )
 
@@ -252,7 +264,7 @@ def insert_fuzzed_request(request: dict) -> int:
                     body.get("charset"),
                     body.get("content_length"),
                     body.get("content_encoding"),
-                    body.get("body"),
+                    sanitize_body(body.get("body")),
                 ),
             )
 
@@ -321,7 +333,7 @@ def insert_fuzzed_response(response: dict, request_id: int) -> int:
                     body.get("charset"),
                     body.get("content_length"),
                     body.get("content_encoding"),
-                    body.get("body"),
+                    sanitize_body(body.get("body")),
                 ),
             )
 
