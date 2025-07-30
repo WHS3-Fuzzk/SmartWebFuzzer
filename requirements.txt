@@ -13,3 +13,4 @@ quickjs==1.19.4
 inquirerpy==0.3.4
 selenium-wire==5.1.0
 blinker==1.6.2
+setuptools==75.6.0

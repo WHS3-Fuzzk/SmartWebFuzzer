@@ -49,10 +49,10 @@ class DBInit:
         conn.close()
 
         if not exists:
-            print(f"📦 데이터베이스 '{self.db_name}'가 없어서 생성합니다.")
+            print(f"[DB] 데이터베이스 '{self.db_name}'가 없어서 생성합니다.")
             self._create_database()
         else:
-            print(f"✅ 데이터베이스 '{self.db_name}'는 이미 존재합니다.")
+            print(f"[DB] 데이터베이스 '{self.db_name}'는 이미 존재합니다.")
             self.drop_all_tables()
 
     def _create_database(self):
@@ -87,7 +87,7 @@ class DBInit:
         conn.commit()
         cur.close()
         conn.close()
-        print("💥 모든 테이블 DROP 완료")
+        print("[DB] 모든 테이블 DROP 완료")
 
     def create_tables(self):
         """DB 내 모든 테이블을 생성합니다."""
@@ -249,7 +249,7 @@ class DBInit:
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ 모든 테이블 생성 완료")
+        print("[DB] 모든 테이블 생성 완료")
 
     def backup_database(self):
         """Docker 컨테이너의 PostgreSQL DB를 SQL 파일로 백업"""
@@ -278,9 +278,9 @@ class DBInit:
                     stdout=f,
                     check=True,
                 )
-            print(f"💾 DB 백업 완료: {backup_path}")
-        except subprocess.CalledProcessError as e:
-            print("❌ DB 백업 실패:", e)
+            print(f"[DB] DB 백업 완료: {backup_path}")
+        except subprocess.CalledProcessError:
+            print("[DB] DB 백업 실패:")
 
 
 def initialize_redis_db() -> bool:
@@ -291,18 +291,18 @@ def initialize_redis_db() -> bool:
 
         # 모든 키 삭제
         keys_deleted = r.flushdb()
-        print(f"[INFO] Redis DB 초기화 성공 여부: {keys_deleted}")
+        print(f"[DB] Redis DB 초기화 성공 여부: {keys_deleted}")
 
         # Celery 백엔드용 DB도 초기화
         r_backend = redis.Redis(
             host="localhost", port=6379, db=1, socket_connect_timeout=5
         )
         keys_deleted_backend = r_backend.flushdb()
-        print(f"[INFO] Redis 백엔드 DB 초기화 성공 여부: {keys_deleted_backend}")
+        print(f"[DB] Redis 백엔드 DB 초기화 성공 여부: {keys_deleted_backend}")
 
         return True
-    except (redis.ConnectionError, redis.TimeoutError) as e:
-        print(f"[ERROR] Redis 연결 실패: {e}")
+    except (redis.ConnectionError, redis.TimeoutError):
+        print("[DB] ERROR! Redis 연결 실패")
         return False
 
 
@@ -315,6 +315,6 @@ def initialize_databases():
 
     # Redis DB 초기화
     if not initialize_redis_db():
-        print("[ERROR] Redis 초기화 실패")
+        print("[DB] ERROR! Redis 초기화 실패")
 
     return db

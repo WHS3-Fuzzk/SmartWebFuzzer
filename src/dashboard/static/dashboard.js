@@ -462,7 +462,7 @@ async function loadRequestDetail(requestId) {
                 ? '?' + Object.entries(req.query_params).map(([k, v]) => `${k}=${v}`).join('&')
                 : '';
             
-            requestText += `${req.method || 'GET'} ${req.path || '/'}${queryString} ${req.http_version || '1.1'}\n`;
+            requestText += `${req.method || ''} ${req.path || '/'}${queryString} ${req.http_version || ''}\n`;
             
             // Host 헤더 추가 (일반적으로 필수)
             if (req.domain) {
@@ -511,7 +511,7 @@ async function loadRequestDetail(requestId) {
             const resp = data.response;
             
             // 응답 라인 구성
-            responseText += `${resp.http_version || '1.1'} ${resp.status_code || '200'}\n`;
+            responseText += `${resp.http_version || ''} ${resp.status_code || ''}\n`;
             
             // 헤더 추가 (중복 방지를 위해 필터링)
             const processedHeaders = new Set();
@@ -586,9 +586,14 @@ async function loadRequestDetail(requestId) {
 
             if (filteredData.length === 0) {
                 fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 필터 조건에 맞는 퍼징 요청이 없습니다.</p>";
-                            document.getElementById("fuzz-body").value = "";
-            document.getElementById("fuzz-response").value = "";
-            document.getElementById("analysis-result").innerHTML = "";
+                
+                // 빈 값으로 초기화 및 화면 갱신
+                window.fuzzRequestText = "";
+                window.fuzzResponseText = "";
+                if (document.getElementById("analysis-result"))
+                    document.getElementById("analysis-result").innerHTML = "";
+                
+                updateFuzzDisplay();
                 updateEmptyPlaceholder();
                 return;
             }
@@ -660,9 +665,14 @@ async function loadRequestDetail(requestId) {
         } else {
             fuzzTitleDiv.textContent = "📨 퍼징 요청 목록";
             fuzzListDiv.innerHTML = "<p style='text-align: center; color: #7f8c8d; padding: 20px;'>🔍 퍼징 대상이 아닙니다.</p>";
-            document.getElementById("fuzz-body").value = "";
-            document.getElementById("fuzz-response").value = "";
-            document.getElementById("analysis-result").innerHTML = "";
+            
+            // 빈 값으로 초기화 및 화면 갱신
+            window.fuzzRequestText = "";
+            window.fuzzResponseText = "";
+            if (document.getElementById("analysis-result"))
+                document.getElementById("analysis-result").innerHTML = "";
+            
+            updateFuzzDisplay();
             updateEmptyPlaceholder();
         }
     } catch (err) {
@@ -670,6 +680,7 @@ async function loadRequestDetail(requestId) {
         clearAll();
     }
 }
+
 
 async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
     // 로딩 상태 표시
@@ -692,7 +703,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             : '';
         
         // 요청 라인 구성
-        fuzzRequestText += `${fuzz.method || 'GET'} ${fuzz.fuzz_request_path || '/'}${queryString} ${fuzz.fuzz_request_http_version || '1.1'}\n`;
+        fuzzRequestText += `${fuzz.method || ''} ${fuzz.fuzz_request_path || '/'}${queryString || ''} ${fuzz.fuzz_request_http_version || ''}\n`;
         
         // Host 헤더 추가
         if (fuzz.fuzz_request_domain) {
@@ -738,7 +749,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
         let fuzzResponseText = "";
         
         // 응답 라인 구성
-        fuzzResponseText += `${fuzz.fuzz_response_http_version || '1.1'} ${fuzz.fuzz_response_status_code || '200'}\n`;
+        fuzzResponseText += `${fuzz.fuzz_response_http_version || ''} ${fuzz.fuzz_response_status_code || ''}\n`;
         
         // 헤더 추가 (중복 방지)
         const processedResponseHeaders = new Set();
@@ -752,26 +763,26 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             }
         });
         
-        // 응답 메타데이터 추가 (헤더에 없는 경우만)
-        if (fuzz.fuzz_response_content_type && !processedResponseHeaders.has('content-type')) {
-            fuzzResponseText += `Content-Type: ${fuzz.fuzz_response_content_type}`;
-            if (fuzz.fuzz_response_charset) {
-                fuzzResponseText += `; charset=${fuzz.fuzz_response_charset}`;
-            }
-            fuzzResponseText += '\n';
-        }
-        if (fuzz.fuzz_response_content_length && !processedResponseHeaders.has('content-length')) {
-            fuzzResponseText += `Content-Length: ${fuzz.fuzz_response_content_length}\n`;
-        }
-        if (fuzz.fuzz_response_content_encoding && !processedResponseHeaders.has('content-encoding')) {
-            fuzzResponseText += `Content-Encoding: ${fuzz.fuzz_response_content_encoding}\n`;
-        }
-        
-        // 빈 줄 추가 (헤더와 바디 구분)
-        fuzzResponseText += '\n';
-        
-        // 응답 바디 추가
+        // 응답 바디가 있을 때만 헤더 메타데이터 추가
         if (fuzz.response_body) {
+            if (fuzz.fuzz_response_content_type && !processedResponseHeaders.has('content-type')) {
+                fuzzResponseText += `Content-Type: ${fuzz.fuzz_response_content_type}`;
+                if (fuzz.fuzz_response_charset) {
+                    fuzzResponseText += `; charset=${fuzz.fuzz_response_charset}`;
+                }
+                fuzzResponseText += '\n';
+            }
+            if (fuzz.fuzz_response_content_length && !processedResponseHeaders.has('content-length')) {
+                fuzzResponseText += `Content-Length: ${fuzz.fuzz_response_content_length}\n`;
+            }
+            if (fuzz.fuzz_response_content_encoding && !processedResponseHeaders.has('content-encoding')) {
+                fuzzResponseText += `Content-Encoding: ${fuzz.fuzz_response_content_encoding}\n`;
+            }
+            
+            // 빈 줄 추가 (헤더와 바디 구분)
+            fuzzResponseText += '\n';
+            
+            // 응답 바디 추가
             fuzzResponseText += fuzz.response_body;
         }
         
@@ -828,7 +839,7 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
                 if (vuln.extra) {
                     resultHTML += `<div class="extra-info">`;
                     resultHTML += `<h4>추가 정보</h4>`;
-                    resultHTML += `<pre class="json-code">${escapeHtml(JSON.stringify(vuln.extra, null, 2))}</pre>`;
+                    resultHTML += `<pre class="json-highlight"><code class="language-json">${escapeHtml(JSON.stringify(vuln.extra, null, 2))}</code></pre>`;
                     resultHTML += `</div>`;
                 }
                 
@@ -840,13 +851,12 @@ async function updateFuzzDetail(fuzz, vulnerabilityData = null) {
             // HTML로 직접 설정
             analysisResult.innerHTML = resultHTML;
             
-            // JSON 하이라이팅 적용
+            
+            // Prism.js 하이라이팅 적용
             setTimeout(() => {
-                const jsonElements = analysisResult.querySelectorAll('.json-code');
-                jsonElements.forEach(element => {
-                    if (element.textContent.trim()) {
-                        element.innerHTML = Prism.highlight(element.textContent, Prism.languages.json, 'json');
-                    }
+                const codeElements = analysisResult.querySelectorAll('code.language-json');
+                codeElements.forEach(code => {
+                    Prism.highlightElement(code);
                 });
             }, 100);
         } else {
@@ -1216,27 +1226,30 @@ function updateFuzzDisplay() {
     const responseContainer = document.getElementById("fuzz-response-container");
     
     // 퍼징 요청 표시
-    if (window.fuzzRequestText) {
+    if (window.fuzzRequestText !== undefined && window.fuzzRequestText !== null) {
         if (requestDiffToggle.classList.contains('active') && window.originalRequestText) {
             requestContainer.innerHTML = advancedDiff(window.originalRequestText, window.fuzzRequestText);
         } else {
-            requestContainer.textContent = window.fuzzRequestText;
+            // 빈 문자열일 경우도 처리
+            requestContainer.textContent = window.fuzzRequestText || "";
         }
     } else {
-        requestContainer.textContent = "🔍 퍼징 요청을 선택하면\n요청 전체가 표시됩니다";
+        requestContainer.textContent = "";
     }
     
     // 퍼징 응답 표시
-    if (window.fuzzResponseText) {
+    if (window.fuzzResponseText !== undefined && window.fuzzResponseText !== null) {
         if (responseDiffToggle.classList.contains('active') && window.originalResponseText) {
             responseContainer.innerHTML = advancedDiff(window.originalResponseText, window.fuzzResponseText);
         } else {
-            responseContainer.textContent = window.fuzzResponseText;
+            // 빈 문자열일 경우도 처리
+            responseContainer.textContent = window.fuzzResponseText || "";
         }
     } else {
-        responseContainer.textContent = "📥 퍼징 요청을 선택하면\n응답 전체가 표시됩니다";
+        responseContainer.textContent = "";
     }
 }
+
 
 // JSON syntax highlighting 관련 함수들
 function isJSONString(str) {

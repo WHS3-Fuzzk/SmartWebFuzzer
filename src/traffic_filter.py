@@ -75,15 +75,6 @@ def is_excluded_url(url: str) -> bool:
     return any(re.search(pattern, url) for pattern in EXCLUDED_PATTERNS)
 
 
-def build_view_filter(domains: list) -> str:
-    """
-    도메인 리스트와 제외 패턴으로 mitmproxy view-filter 문자열 생성
-    """
-    excluded_filter = " & ".join([f'!~u "{pattern}"' for pattern in EXCLUDED_PATTERNS])
-    filters = [f"(~d {domain} & {excluded_filter})" for domain in domains]
-    return " | ".join(filters)
-
-
 def is_duplicated_by_flow(flow: http.HTTPFlow, mode: str = "request") -> bool:
     """
     요청 또는 응답이 중복인지 판단
@@ -332,6 +323,4 @@ def response(flow: http.HTTPFlow) -> None:
     if request_id is not None:
         insert_filtered_response(response_dict, request_id)
     else:
-        print(
-            f"[Error] request_id를 찾을 수 없습니다 (flow.id: {flow.id}). 응답을 저장하지 않습니다."
-        )
+        print("[ERROR] request_id를 찾을 수 없습니다. 응답을 저장하지 않습니다.")

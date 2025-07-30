@@ -25,7 +25,13 @@ from typedefs import RequestData, Body
 
 DB_ERRORS: Dict[str, List[str]] = {
     "MySQL": ["You have an error in your SQL syntax", "Warning: mysql_"],
-    "PostgreSQL": ["pg_query()", "pg_exec()", "PostgreSQL"],
+    "PostgreSQL": [
+        "syntax error at or near",
+        "unterminated quoted",
+        "pg_query()",
+        "pg_exec()",
+        "PostgreSQL",
+    ],
     "MSSQL": [
         "Unclosed quotation mark after the character string",
         "Microsoft OLE DB Provider for SQL Server",
@@ -41,7 +47,7 @@ class SqliScanner(BaseScanner):
     @property
     def vulnerability_name(self) -> str:
         """탐지 대상 취약점 이름을 반환합니다."""
-        return "SQLi"
+        return "SQL Injection"
 
     def __init__(self):
         """SQLiScanner 인스턴스를 초기화하며, 페이로드와 임계값을 설정합니다."""
@@ -197,12 +203,15 @@ class SqliScanner(BaseScanner):
                             }
 
                             insert_vulnerability_scan_result(scan_result)
+                            # print(
+                            #     f"[SQLi]\n"
+                            #     f" - 파라미터: {scan_result['parameter']}\n"
+                            #     f" - 입력값: {scan_result['payload']}\n"
+                            #     f" - DBMS: {scan_result['extra']['dbms']}\n"
+                            #     f" - 근거: {scan_result['extra']['details']}"
+                            # )
                             print(
-                                f"[SQL Injection 탐지됨]\n"
-                                f" - 파라미터: {scan_result['parameter']}\n"
-                                f" - 입력값: {scan_result['payload']}\n"
-                                f" - DBMS: {scan_result['extra']['dbms']}\n"
-                                f" - 근거: {scan_result['extra']['details']}"
+                                f"[{self.vulnerability_name}] 취약점 스캔 결과 저장 완료"
                             )
 
                     pending.remove(res)
@@ -221,9 +230,9 @@ def analyze_response_sqli(response: Dict[str, Any]) -> Dict[str, Any]:
     payload_type = extra.get("fuzz_type", "None")
     elapsed = response.get("elapsed_time", 0)
 
-    print(
-        f"[SQLi 분석] 상태: {status}, 페이로드 타입: {payload_type}, 지연: {elapsed:.2f}s"
-    )
+    # print(
+    #     f"[SQLi] 분석 - 상태: {status}, 페이로드 타입: {payload_type}, 지연: {elapsed:.2f}s"
+    # )
     if payload_type == "time":
         if elapsed >= 4.5:
 

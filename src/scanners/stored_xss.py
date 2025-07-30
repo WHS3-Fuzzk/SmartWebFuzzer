@@ -45,7 +45,7 @@ class StoredXSS(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "stored_xss"
+        return "Stored XSS"
 
     def __init__(self):
         """
@@ -113,17 +113,12 @@ class StoredXSS(BaseScanner):
                     "param_id": param_id,
                     "type": "stored_xss",
                 }
-                # print(f"{request}")
-                # print("------------------------")
-                print(f"{new_request}")
-                print("------------------------")
-
                 yield new_request
         elif "application/json" in content_type:
             try:
                 params = json.loads(raw_body)
-            except Exception as e:
-                print(f"JSON 파싱 오류: {e}")
+            except Exception:
+                print(f"[{self.vulnerability_name}] JSON 파싱 오류")
                 return
             if isinstance(params, dict):
                 for param_id, k in enumerate(params.keys()):
@@ -146,8 +141,6 @@ class StoredXSS(BaseScanner):
                         "param_id": param_id,
                         "type": "stored_xss",
                     }
-                    print(f"{new_request}")
-                    print("------------------------")
                     yield new_request
         elif "multipart/form-data" in content_type:
             # boundary 추출
@@ -159,7 +152,7 @@ class StoredXSS(BaseScanner):
                         boundary = ct.split("boundary=")[-1]
                         break
             if not boundary:
-                print("boundary 정보 없음")
+                print(f"[{self.vulnerability_name}] boundary 정보 없음")
                 return
 
             # multipart 파싱
@@ -168,7 +161,6 @@ class StoredXSS(BaseScanner):
                 % (boundary.encode(), raw_body.encode("utf-8"))
             )
 
-            parts = []
             # 파트별로 하나씩 페이로드 삽입된 요청 생성
             for i, part in enumerate(msg.iter_parts()):
                 # 파일 파트는 건너뜀
@@ -185,7 +177,7 @@ class StoredXSS(BaseScanner):
                             name = piece.split("=")[-1].strip('"')
                             break
                     if not name:
-                        print(f"form-data 파트에 name 없음: {cd}")
+                        print(f"[{self.vulnerability_name}] form-data 파트에 name 없음")
                         continue
 
                     # 모든 파트 복사
@@ -237,8 +229,6 @@ class StoredXSS(BaseScanner):
                         "param_id": i,
                         "type": "stored_xss",
                     }
-                    print(f"{new_request}")
-                    print("------------------------")
                     yield new_request
 
     def run(
@@ -252,10 +242,6 @@ class StoredXSS(BaseScanner):
         if not self.is_target(request_id, request):
             return []
 
-        print(
-            "[+] This is Target for Stored XSS scanner on request ID:", request_id
-        )  # 테스트용 출력
-        # results = []
         for fuzz_request in self.generate_fuzzing_requests(request, request_id):
             # fuzz_request_dict = realdictrow_to_dict(fuzz_request)
 
@@ -278,8 +264,8 @@ class StoredXSS(BaseScanner):
                 insert_fuzzed_response(
                     to_fuzzed_response_dict(response), fuzzed_request_id
                 )
-                print(f"퍼징 요청 저장 완료: {fuzzed_request_id}")
-            except Exception as e:
-                print(f"DB 저장 중 오류 발생: {e}")
+                print(f"[{self.vulnerability_name}] 퍼징 요청 저장 완료")
+            except Exception:
+                print(f"[{self.vulnerability_name}] DB 저장 중 오류 발생")
 
         return []

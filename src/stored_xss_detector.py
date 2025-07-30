@@ -93,7 +93,7 @@ def check_identifier_in_attributes(html_text, identifier):
     if custom_tags:
         results += inspect_custom_tag_attributes(soup, identifier)
     else:
-        print("[-] <whs3fuzzk-*-*> 태그는 생성되지 않음. 속성 검사 생략됨.")
+        print("[Stored XSS] <whs3fuzzk-*-*> 태그는 생성되지 않음. 속성 검사 생략됨.")
 
     return results
 
@@ -189,22 +189,22 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
 
     matches = pattern.findall(response_body)
     if not matches:
-        print("[S_XSS] 페이로드가 응답에 없음")
+        print("[Stored XSS] 페이로드가 응답에 없음")
         json_matches = extract_ids_from_json_payload(response_body)
         if json_matches:
-            print("[S_XSS] JSON 응답에서 페이로드가 탐지됨")
+            print("[Stored XSS] JSON 응답에서 페이로드가 탐지됨")
             matches = json_matches
         else:
-            print("[S_XSS] JSON 응답에서도 페이로드 없음")
+            print("[Stored XSS] JSON 응답에서도 페이로드 없음")
             return []
-    print(f"[S_XSS] 총 {len(matches)}개의 페이로드 탐지됨")
+    # print(f"[Stored XSS] 총 {len(matches)}개의 페이로드 탐지됨")
     matches = list(set(matches))  # 중복 제거
 
     all_fuzzed_requests = reader.select_fuzzed_request_with_original_id_all(
         int(matches[0][0])
     )
     if not all_fuzzed_requests:
-        print(f"[S_XSS] fuzzed_request 조회 실패: request_id={matches[0][0]}")
+        print(f"[Stored XSS] fuzzed_request 조회 실패: request_id={matches[0][0]}")
         return []
 
     # DB에 저장할 dict 구성
@@ -222,7 +222,7 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
                 break
 
         if not matched_fuzzed_request:
-            print(f"[S_XSS] param_id={param_id}에 맞는 fuzzed_request가 없음")
+            print(f"[Stored XSS] param_id={param_id}에 맞는 fuzzed_request가 없음")
             continue
 
         payload_param = matched_fuzzed_request["meta"].get("payload", "")
@@ -250,6 +250,7 @@ def analyze_stored_xss_flow(response: dict) -> List[dict]:
         }
 
         insert_vulnerability_scan_result(scan_result)
+        print(f"[Stored XSS] 취약점 스캔 결과 저장 완료")
         results.append(scan_result)
 
     return results

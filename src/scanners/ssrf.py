@@ -45,7 +45,7 @@ class SSRFScanner(BaseScanner):
 
     @property
     def vulnerability_name(self) -> str:
-        return "ssrf"
+        return "SSRF"
 
     def is_target(self, request_id: int, request: RequestData) -> bool:
         """
@@ -126,6 +126,9 @@ class SSRFScanner(BaseScanner):
         """SSRF 페이로드를 생성하여 퍼징 요청을 만듭니다."""
         payloads = [
             "@198.51.100.42",
+            "x@198.51.100.42",
+            "@3325256746",
+            "x@3325256746",
             "file:///etc/services",
         ]
 
@@ -160,7 +163,6 @@ class SSRFScanner(BaseScanner):
                     # URL 인코딩된 폼 데이터
                     for keyword in self.keywords:
                         if keyword in body_content.lower():
-                            print(f"Fuzzing body with keyword: {keyword}")
 
                             # 키워드가 포함된 파라미터를 모두 퍼징 (stockApi, myApiKey 등도 포함)
                             pattern = rf"([^&=]*{keyword}[^&=]*=)([^&]+)"
@@ -266,7 +268,7 @@ class SSRFScanner(BaseScanner):
         request: RequestData,
     ) -> List[Dict[str, Any]]:
         """SSRF 스캔을 실행합니다."""
-        print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}\n")
+        # print(f"[{self.vulnerability_name}]\n요청 ID: {request_id}\n")
 
         if not self.is_target(request_id, request):
             return []
@@ -275,7 +277,7 @@ class SSRFScanner(BaseScanner):
 
         # 퍼징 요청을 생성하고, 각 변조된 요청을 비동기로 전송
         for fuzzing_request in self.generate_fuzzing_requests(request):
-            print(f"[{self.vulnerability_name}] 퍼징 요청 생성")
+            # print(f"[{self.vulnerability_name}] 퍼징 요청 생성")
             async_result = chain(
                 send_fuzz_request.s(request_data=fuzzing_request)
                 | analyze_ssrf_response.s()
@@ -287,7 +289,7 @@ class SSRFScanner(BaseScanner):
         pending = list(async_results)
 
         while pending:
-            print(f"[{self.vulnerability_name}] 대기 중인 작업 수: {len(pending)}")
+            # print(f"[{self.vulnerability_name}] 대기 중인 작업 수: {len(pending)}")
             for res in pending[:]:
                 if res.ready():
                     result = res.get()
@@ -315,7 +317,7 @@ class SSRFScanner(BaseScanner):
 
                         # 취약점이 발견된 경우에만 vulnerability_scan_results에 저장
                         if result and result != {}:
-                            print(f"SSRF 취약점 발견: {result}")
+                            # print(f"[{self.vulnerability_name}] 취약점 발견")
                             scan_result = {
                                 "vulnerability_name": self.vulnerability_name,
                                 "original_request_id": request_id,
@@ -347,14 +349,18 @@ class SSRFScanner(BaseScanner):
                                 },
                             }
                             # 취약점 스캔 결과를 DB에 저장
-                            result_id = insert_vulnerability_scan_result(scan_result)
-                            print(f"SSRF 취약점 스캔 결과 저장 완료: {result_id}")
+                            insert_vulnerability_scan_result(scan_result)
+                            print(
+                                f"[{self.vulnerability_name}] SSRF 취약점 스캔 결과 저장 완료"
+                            )
                         else:
-                            print("SSRF 취약점이 발견되지 않았습니다.")
+                            print(
+                                f"[{self.vulnerability_name}] SSRF 취약점이 발견되지 않았습니다."
+                            )
 
-                        print(f"퍼징 요청 저장 완료: {fuzzed_request_id}")
+                        print(f"[{self.vulnerability_name}] 퍼징 요청 저장 완료")
                     else:
-                        print(f"완료된 작업: {res.id}, 취약점 없음")
+                        print(f"[{self.vulnerability_name}] 취약점 없음")
 
                     pending.remove(res)
             time.sleep(0.5)
@@ -379,9 +385,10 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
     error_type = response.get("error_type", "")
 
     # 긴 로그 메시지를 여러 줄로 분할
-    print(f"[analyze_ssrf_response] 응답 시간: {response_time}초")
-    print(f"상태 코드: {status_code}, 에러 타입: {error_type}")
-    print(f"에러 메시지: {error_message}")
+    # print(f"[SSRF] 응답 분석 시작")
+    # print(f"[{self.vulnerability_name}] 응답 시간: {response_time}초")
+    # print(f"[{self.vulnerability_name}] 상태 코드: {status_code}, 에러 타입: {error_type}")
+    # print(f"[{self.vulnerability_name}] 에러 메시지: {error_message}")
 
     # 페이로드 정보 추출
     payload = response.get("request_data", {}).get("extra", {}).get("payload", "")
