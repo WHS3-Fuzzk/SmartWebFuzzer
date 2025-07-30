@@ -1,4 +1,4 @@
-# pylint: disable= too-many-branches,too-many-statements
+# pylint: disable=too-many-branches,too-many-statements
 """스마트 웹 퍼저의 시작점 모듈
 동작 순서:
 1. 인프라 실행 (docker-compose up)
