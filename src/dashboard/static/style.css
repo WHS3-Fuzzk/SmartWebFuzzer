@@ -1,5 +1,6 @@
 /* 전체 페이지 기본 스타일 */
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -31,9 +32,11 @@ h2 {
 .container {
     display: flex;
     gap: 15px;
-    align-items: stretch; /* 세 열 높이 통일 */
+    align-items: stretch;
+    /* 세 열 높이 통일 */
     flex: 1;
-    min-height: 0; /* flex 아이템이 overflow 될 수 있도록 */
+    min-height: 0;
+    /* flex 아이템이 overflow 될 수 있도록 */
 }
 
 /* 각 열 공통 스타일 */
@@ -48,12 +51,12 @@ h2 {
     gap: 12px;
     overflow: hidden;
     background-color: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.3s ease;
 }
 
 .column:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* 섹션 헤더 */
@@ -216,7 +219,8 @@ textarea:focus {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 13px;
-    min-width: 0; /* flex 아이템이 축소될 수 있도록 */
+    min-width: 0;
+    /* flex 아이템이 축소될 수 있도록 */
 }
 
 /* URL 표시 부분의 스타일 개선 */
@@ -227,8 +231,10 @@ textarea:focus {
 }
 
 .request-item-content span:nth-child(2) {
-    flex: 1; /* URL 부분이 사용 가능한 공간을 차지 */
-    min-width: 0; /* 축소 가능하도록 */
+    flex: 1;
+    /* URL 부분이 사용 가능한 공간을 차지 */
+    min-width: 0;
+    /* 축소 가능하도록 */
 }
 
 /* 취약점 아이콘 */
@@ -239,12 +245,39 @@ textarea:focus {
     transition: opacity 0.3s ease;
 }
 
+.bracket-label2 {
+    display: inline-block;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    position: relative;
+    min-width: 60px;
+    box-sizing: border-box;
+}
+
+.bracket-label2::before {
+    content: '[';
+    position: absolute;
+    left: 0;
+}
+
+.bracket-label2::after {
+    content: ']';
+    position: absolute;
+    right: 0;
+}
+
+
 .bracket-label {
     display: inline-block;
     text-align: center;
     font-weight: 600;
-    font-family: monospace;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
     position: relative;
+    min-width: 160px;
+    box-sizing: border-box;
 }
 
 .bracket-label::before {
@@ -332,7 +365,7 @@ textarea:focus {
     overflow-x: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     font-feature-settings: 'liga' 1, 'calt' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -520,12 +553,12 @@ textarea:focus {
     border-radius: 8px;
     margin-bottom: 16px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
 }
 
 .vulnerability-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .vulnerability-header {
@@ -680,17 +713,17 @@ textarea:focus {
     body {
         padding: 10px;
     }
-    
+
     .container {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .column {
         min-height: 250px;
         flex: 1;
     }
-    
+
     #analysis-result {
         min-height: 150px;
     }
