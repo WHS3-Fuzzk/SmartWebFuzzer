@@ -56,7 +56,7 @@ class CommandiScanner(BaseScanner):
         # 리플렉티드 페이로드 템플릿 (중요한 것만)
         unix_payload_templates = [
             "echo CMDTEST{marker}",
-            "whoami; echo CMDTEST{marker}",
+            "id; echo CMDTEST{marker}",
         ]
 
         # 시간 기반 페이로드 (다양한 OS 커맨드)
@@ -157,12 +157,12 @@ class CommandiScanner(BaseScanner):
                             }
                             yield fuzzing_request
 
-    def _classify_payload_type(self, payload: str) -> str:
-        if "CMDTEST" in payload:
-            return "reflected"
-        if any(x in payload for x in ["sleep", "ping", "timeout", "Start-Sleep"]):
-            return "time_based"
-        return "general"
+    # def _classify_payload_type(self, payload: str) -> str:
+    #     if "CMDTEST" in payload:
+    #         return "reflected"
+    #     if any(x in payload for x in ["sleep", "ping", "timeout", "Start-Sleep"]):
+    #         return "time_based"
+    #     return "general"
 
     def run(self, request_id: int, request: RequestData) -> List[Dict[str, Any]]:
         if not self.is_target(request_id, request):
@@ -243,33 +243,46 @@ def analyze_response_commandi(response: Dict[str, Any]) -> Dict[str, Any]:
     response_time_ms = elapsed_time * 1000  # 초를 밀리초로 변환
     sc = response.get("status_code", 200)
 
+    evidence_lines = []
     # 1. Reflected
     if unique and f"CMDTEST{unique}" in text:
-        return {"payload": payload, "evidence": f"고유 마커 CMDTEST{unique} 반영"}
+        if "echo" not in text.lower():
+            evidence_lines.append(f"고유 마커 CMDTEST{unique} 감지")
 
     # 2. Time-based (5초 이상)
     if response_time_ms >= 5000.00:
         seconds = response_time_ms / 1000.0
-        return {
-            "payload": payload,
-            "evidence": f"응답 지연(타임아웃) 탐지: {seconds:.2f}초 (5초 이상 지연)",
-        }
+        evidence_lines.append(
+            f"응답 지연(타임아웃) 탐지: {seconds:.2f}초 (5초 이상 지연)"
+        )
 
     # 3. Pattern-based
-    patterns = [
-        r"uid=\\d+\\([^)]+\\)\\s+gid=\\d+\\([^)]+\\)",
+    # patterns = [
+    #     r"uid=\\d+\\([^)]+\\)\\s+gid=\\d+\\([^)]+\\)",
+    #     r"root:.*?:0:0:",
+    #     r"/(?:bin|usr|etc|var|tmp|home)/[A-Za-z0-9_/.-]*",
+    #     r"[A-Z]:\\\\(?:Windows|Program Files|Users)\\\\",
+    #     r"Linux.*?\\d+\.\\d+\.\\d+",
+    #     r"Darwin.*?\\d+\.\\d+\.\\d+",
+    #     r"Microsoft Windows.*?Version \\d+\.\\d+",
+    #     r"total \\d+",
+    #     r"Directory of [A-Z]:\\\\",
+    # ]
+    patterns = [  # \\d -> \d, \\\\ -> \\ 불필요한 이스케이프 제거 버전
+        r"uid=\d+\([^)]+\)\s+gid=\d+\([^)]+\)",
         r"root:.*?:0:0:",
-        r"/(?:bin|usr|etc|var|tmp|home)/[A-Za-z0-9_/.-]*",
-        r"[A-Z]:\\\\(?:Windows|Program Files|Users)\\\\",
-        r"Linux.*?\\d+\.\\d+\.\\d+",
-        r"Darwin.*?\\d+\.\\d+\.\\d+",
-        r"Microsoft Windows.*?Version \\d+\.\\d+",
-        r"total \\d+",
-        r"Directory of [A-Z]:\\\\",
+        r"/(?:bin|usr|etc|var|tmp|home)/[\w/.\-]*",
+        # r"[A-Z]:\\(?:Windows|Program Files|Users)\\",
+        # r"Linux.*?\d+\.\d+\.\d+",
+        # r"Darwin.*?\d+\.\d+\.\d+",
+        # r"Microsoft Windows.*?Version \d+\.\d+",
+        r"total \d+",
+        r"Directory of [A-Z]:\\",
     ]
+
     for pat in patterns:
         if re.search(pat, text, re.MULTILINE | re.IGNORECASE):
-            return {"payload": payload, "evidence": f"패턴 매칭: {pat}"}
+            evidence_lines.append(f"패턴 매칭: {pat}")
 
     # 4. Error-based
     errors = [
@@ -278,15 +291,22 @@ def analyze_response_commandi(response: Dict[str, Any]) -> Dict[str, Any]:
     ]
     for err in errors:
         if re.search(err, text, re.IGNORECASE):
-            return {"payload": payload, "evidence": f"오류 메시지 탐지: {err}"}
+            evidence_lines.append(f"오류 메시지 탐지: {err}")
 
     # 5. Status-code-based
-    if sc in [500, 502, 503, 504]:
-        return {"payload": payload, "evidence": f"서버 오류 코드 {sc}"}
+    if sc == 500:
+        if unique and f"CMDTEST{unique}" in text:
+            evidence_lines.append(f"서버 오류 코드 500 (reflected 기반 실행)")
+        elif extra.get("detection_type") == "time_based" and response_time_ms >= 5000:
+            evidence_lines.append(f"서버 오류 코드 500 (타임 기반 실행)")
+        else:
+            return {}  # 오탐 방지: SQL 문법 오류 등
+    elif sc in [502, 503, 504]:
+        evidence_lines.append(f"서버 오류 코드 {sc}")
 
     # 6. Empty-response
     if not text.strip() and extra.get("detection_type") == "general" and sc == 200:
-        return {"payload": payload, "evidence": "빈 응답 가능성"}
+        evidence_lines.append("빈 응답 가능성")
 
     # 7. Suspicious-string
     sus = [
@@ -301,6 +321,9 @@ def analyze_response_commandi(response: Dict[str, Any]) -> Dict[str, Any]:
     ]
     for s in sus:
         if s.lower() in text.lower():
-            return {"payload": payload, "evidence": f"의심 문자열: {s}"}
+            evidence_lines.append(f"의심 문자열: {s}")
 
-    return {}
+    # evidence가 비어있으면 취약점 없음
+    if not evidence_lines:
+        return {}
+    return {"payload": payload, "evidence": evidence_lines}
