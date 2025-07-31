@@ -9,6 +9,7 @@ FileDownloadScanner: 파일 다운로드 취약점 탐지 스캐너
 """
 import copy
 import os
+import hashlib
 from typing import Any, Dict, Iterable, List, Optional, cast
 
 # from celery import chain
@@ -88,6 +89,7 @@ class FileDownloadScanner(BaseScanner):
                 errors="replace",
             )
             self.original_body = body_content
+            self.original_hash = hashlib.sha256(body_content).hexdigest()
 
         return True
 
@@ -195,7 +197,8 @@ class FileDownloadScanner(BaseScanner):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
 
                 # 원본 파일과 직접 비교
-                is_same = self.original_body == fuzz_body
+                fuzz_hash = hashlib.sha256(fuzz_body).hexdigest()
+                is_same = fuzz_hash == self.original_hash
 
             elif self.current_stage == 2:
                 fuzz_body = fuzz_response.get("body", b"")
@@ -268,10 +271,13 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
     payload = extra.get("payload", "")
     stage = extra.get("stage", 0)
     is_same_file = extra.get("is_same_file", False)
+    headers = response.get("headers", {}) or {}
+    content_disposition = headers.get("Content-Disposition", "").lower()
 
     evidence = None
 
     body = response.get("body", b"")
+
     if isinstance(body, str):
         body = body.encode("utf-8", errors="replace")
 
@@ -285,12 +291,12 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     if stage == 2:
-        if body and len(body) > 0:
+        if "attachment" in content_disposition and body and len(body) > 0:
             evidence = (
                 f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약점 가능성 ⬆️"
             )
         else:
-            evidence = "2단계: 우회 실패 또는 응답 없음 → 취약 가능성 낮음"
+            evidence = f"파일 다운로드 실패 → 취약 가능성 낮음"
 
     return {
         "evidence": evidence,
