@@ -31,7 +31,8 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 - SQL Injection
 - Command Injection
 - SSRF (Server-Side Request Forgery)
-- File Download Vulnerability
+- File Upload
+- File Download
 
 ## ⚙ 기술 스택
 
