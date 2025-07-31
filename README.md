@@ -115,7 +115,7 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
    | `-t NUM`   | `--threads NUM`    | 스레드 수 (기본값: 8)                        |
    | `-rps NUM` | `--rate-limit NUM` | 초당 요청 수 제한 (RPS, 기본값: 제한 없음)   |
 
-6. **메인보드 확인**
+6. **대시보드 확인**
 
    ```text
    127.0.0.1:5000
