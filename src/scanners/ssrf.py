@@ -381,7 +381,7 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
     response_time = response.get("elapsed_time", 0)
     status_code = response.get("status_code", 0)
     response_text = response.get("text", "")
-    error_message = response.get("error_message", "").lower()
+
     error_type = response.get("error_type", "")
 
     # 긴 로그 메시지를 여러 줄로 분할
@@ -401,36 +401,8 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
             "confidence": 0.9,
             "attack_type": "timeout_based",
         }
+    elif response_time < 5 and status_code == 200:
 
-    # 2. 연결 오류 기반 탐지 (내부 서비스 접근 시도)
-    if error_type == "connection_error":
-        # 내부 IP나 로컬 서비스에 접근을 시도했을 때 연결 오류가 발생하는 경우
-        if any(
-            internal_indicator in payload
-            for internal_indicator in [
-                "127.0.0.1",
-                "localhost",
-                "0.0.0.0",
-                "::1",
-                "10.",
-                "172.",
-                "192.168.",
-                "169.254.",
-                "file://",
-                "@",
-                ":",
-            ]
-        ):
-            vulnerability = {
-                "payload": payload,
-                "evidence": f"SSRF 내부 서비스 접근 시도 탐지 (연결오류: {error_message})",
-                "confidence": 0.7,
-                "attack_type": "internal_access_attempt",
-            }
-
-    # 3. 빠른 응답의 경우 /etc/services 내용 검사
-    if error_type == "" and response_time < 5 and status_code == 200:
-        # /etc/services 파일의 특징적인 내용들
         services_indicators = [
             "ftp",
             "ssh",
@@ -469,19 +441,6 @@ def analyze_ssrf_response(response: Dict[str, Any]) -> Dict[str, Any]:
                 "confidence": 0.95,
                 "attack_type": "file_disclosure",
                 "services_count": len(services_found),
-            }
-
-        # 포트 번호 패턴 확인 (예: ssh 22/tcp, http 80/tcp)
-        if (
-            "22/tcp" in response_lower
-            or "80/tcp" in response_lower
-            or "443/tcp" in response_lower
-        ):
-            vulnerability = {
-                "payload": payload,
-                "evidence": "시스템 서비스 포트 정보 탐지됨 (TCP 포트 리스트 형식)",
-                "confidence": 0.8,
-                "attack_type": "port_disclosure",
             }
 
     return vulnerability
