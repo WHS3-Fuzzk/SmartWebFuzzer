@@ -9,6 +9,7 @@ FileDownloadScanner: 파일 다운로드 취약점 탐지 스캐너
 """
 import copy
 import os
+import hashlib
 from typing import Any, Dict, Iterable, List, Optional, cast
 
 # from celery import chain
@@ -34,7 +35,7 @@ class FileDownloadScanner(BaseScanner):
         super().__init__()
         self.base_dir = os.path.dirname(__file__)
         self.request_id: int = -1
-        self.original_body: Optional[bytes] = None
+        self.original_body: Optional[str] = None  # 해시값으로 저장
         self.current_stage: int = 1  # 현재 퍼징 단계 (1: 초기, 2: 경로 우회)
 
     @property
@@ -87,7 +88,8 @@ class FileDownloadScanner(BaseScanner):
                 content_encoding if content_encoding != "identity" else "utf-8",
                 errors="replace",
             )
-            self.original_body = body_content
+            # 처음 1000바이트만 해시 처리하여 저장
+            self.original_body = hashlib.sha256(body_content[:1000]).hexdigest()
 
         return True
 
@@ -194,8 +196,9 @@ class FileDownloadScanner(BaseScanner):
                 if isinstance(fuzz_body, str):
                     fuzz_body = fuzz_body.encode("utf-8", errors="replace")
 
-                # 원본 파일과 직접 비교
-                is_same = self.original_body == fuzz_body
+                # 원본 파일과 직접 비교 (처음 1000바이트만)
+                fuzz_hash = hashlib.sha256(fuzz_body[:1000]).hexdigest()
+                is_same = fuzz_hash == self.original_body
 
             elif self.current_stage == 2:
                 fuzz_body = fuzz_response.get("body", b"")
@@ -268,10 +271,14 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
     payload = extra.get("payload", "")
     stage = extra.get("stage", 0)
     is_same_file = extra.get("is_same_file", False)
+    headers = response.get("headers", {}) or {}
+    content_disposition = headers.get("Content-Disposition", "").lower()
+    status_code = response.get("status_code", 0)
 
     evidence = None
 
     body = response.get("body", b"")
+
     if isinstance(body, str):
         body = body.encode("utf-8", errors="replace")
 
@@ -285,12 +292,14 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     if stage == 2:
-        if body and len(body) > 0:
-            evidence = (
-                f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약점 가능성 ⬆️"
-            )
+        if "attachment" in content_disposition:
+            evidence = f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약 가능성 ⬆️(다른 파일일 경우)"
+        elif status_code == 404:
+            evidence = f"2단계: 경로 우회('{payload}') 시 404 Not Found 발생 → 취약 가능성 ⬆️(상위 경로 이동)"
+        elif status_code == 403:
+            evidence = f"2단계: 경로 우회('{payload}') 시 403 Forbidden 발생 → 취약 가능성 ⬇️(필터링 존재)"
         else:
-            evidence = "2단계: 우회 실패 또는 응답 없음 → 취약 가능성 낮음"
+            evidence = f"2단계: 경로 우회('{payload}') 시 파일 다운로드 실패"
 
     return {
         "evidence": evidence,
