@@ -273,6 +273,7 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
     is_same_file = extra.get("is_same_file", False)
     headers = response.get("headers", {}) or {}
     content_disposition = headers.get("Content-Disposition", "").lower()
+    status_code = response.get("status_code", 0)
 
     evidence = None
 
@@ -291,12 +292,14 @@ def analyze_file_download_response(response: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     if stage == 2:
-        if "attachment" in content_disposition and body and len(body) > 0:
-            evidence = (
-                f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약점 가능성 ⬆️"
-            )
+        if "attachment" in content_disposition:
+            evidence = f"2단계: 경로 우회('{payload}') 시 파일 다운로드 성공 → 취약 가능성 ⬆️(다른 파일일 경우)"
+        elif status_code == 404:
+            evidence = f"2단계: 경로 우회('{payload}') 시 404 Not Found 발생 → 취약 가능성 ⬆️(상위 경로 이동)"
+        elif status_code == 403:
+            evidence = f"2단계: 경로 우회('{payload}') 시 403 Forbidden 발생 → 취약 가능성 ⬇️(필터링 존재)"
         else:
-            evidence = "파일 다운로드 실패 → 취약 가능성 낮음"
+            evidence = f"2단계: 경로 우회('{payload}') 시 파일 다운로드 실패"
 
     return {
         "evidence": evidence,
