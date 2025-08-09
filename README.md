@@ -97,6 +97,11 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 
    ```sh
    pip install -r requirements.txt
+
+   # uv
+   uv venv --python 3.12.0 .venv
+   source .venv/bin/activate
+   uv pip install -r requirements.txt
    ```
 
 5. **메인 프로그램 실행**
@@ -105,6 +110,9 @@ Fuzzk Smart Web Fuzzer는 웹 애플리케이션과 웹 서비스의 보안 취�
 
    ```sh
    python src/main.py [-h] [-url URL] [-w NUM] [-t NUM] [-rps NUM]
+
+   # uv
+   uv run python src/main.py
    ```
 
    | 옵션       | 전체 이름          | 설명                                         |
